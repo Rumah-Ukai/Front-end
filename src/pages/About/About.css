@@ -1,0 +1,15 @@
+/* Oleh.css */
+@keyframes loading {
+    100% {
+        background-position: -100% 50%;
+    }
+    0% {
+        background-position: 200% 50%;
+    }
+}
+
+.loading {
+    background: linear-gradient(90deg, #e0e0e0, #f7f7f7, #e0e0e0);
+    background-size: 300% 100%; /* Adjust the size to accommodate the animation */
+    animation: loading 5s linear infinite; /* Adjust the animation duration for a smoother appearance */
+}

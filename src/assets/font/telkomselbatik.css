@@ -1,0 +1,9 @@
+@font-face {
+    font-family: 'TelkomselBatikRegular';
+    src: url('../TelkomselBatik/TelkomselBatikSans-Regular.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'TelkomselBatikBold';
+    src: url('../TelkomselBatik/TelkomselBatikSans-Bold.ttf') format('truetype');
+}
