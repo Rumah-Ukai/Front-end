@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+// src/components/beranda/QuizNavigation.tsx
+import React, { useState } from 'react';
 import {
   Stack,
   Button,
@@ -14,67 +15,46 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 interface QuizNavigationProps {
   totalQuestions: number;
-  selectedQuestion: number; // nomor urut 1..N (bukan id database)
-  onSelectQuestion: (numOrder: number) => void; // terima nomor urut 1..N
-  answeredQuestions: number[]; // daftar nomor urut yang sudah dijawab
-  flaggedQuestions: number[]; // daftar nomor urut yang di-flag
-  onToggleFlag: (numOrder: number) => void; // toggle flag by nomor urut
+  selectedQuestion: number; // nomor urut 1..N
+  onSelectQuestion: (numOrder: number) => void;
   showAll: boolean;
   onToggleShowAll: () => void;
-  durationMinutes: number;
-  startTime: string; // ✅ ambil dari backend attempt.start_time
-  onTimeUp: () => void;
   onFontSizeChange: (size: 'small' | 'normal' | 'large') => void;
+
+  // Review mode selalu aktif
+  grade: string | null;
+  correctQuestions?: number[];
+  incorrectQuestions?: number[];
 }
 
 export default function QuizNavigation({
   totalQuestions,
   selectedQuestion,
   onSelectQuestion,
-  answeredQuestions,
-  flaggedQuestions,
   showAll,
   onToggleShowAll,
-  durationMinutes,
-  startTime,
-  onTimeUp,
   onFontSizeChange,
+  grade,
+  correctQuestions = [],
+  incorrectQuestions = [],
 }: QuizNavigationProps) {
   const [expanded, setExpanded] = useState<boolean>(true);
-  const [timeLeft, setTimeLeft] = useState<number>(durationMinutes * 60);
   const [fontSize, setFontSize] = useState<'small' | 'normal' | 'large'>('normal');
-
-  // countdown berdasarkan startTime
-  useEffect(() => {
-    const start = new Date(startTime).getTime();
-    const totalSeconds = durationMinutes * 60;
-
-    const tick = setInterval(() => {
-      const now = Date.now();
-      const elapsed = Math.floor((now - start) / 1000);
-      const remaining = totalSeconds - elapsed;
-
-      if (remaining <= 0) {
-        setTimeLeft(0);
-        onTimeUp();
-        clearInterval(tick);
-      } else {
-        setTimeLeft(remaining);
-      }
-    }, 1000);
-
-    return () => clearInterval(tick);
-  }, [startTime, durationMinutes, onTimeUp]);
-
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60).toString().padStart(2, '0');
-    const s = (sec % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
 
   const handleFontSize = (size: 'small' | 'normal' | 'large') => {
     setFontSize(size);
     onFontSizeChange(size);
+  };
+
+  // pewarnaan nomor soal
+  const getButtonColorsForNum = (numOrder: number) => {
+    if (correctQuestions.includes(numOrder)) {
+      return { bg: '#2e7d32', hover: '#1b5e20', text: '#fff' }; // green
+    }
+    if (incorrectQuestions.includes(numOrder)) {
+      return { bg: '#d32f2f', hover: '#9a0007', text: '#fff' }; // red
+    }
+    return { bg: '#1976d2', hover: '#115293', text: '#fff' }; // default blue
   };
 
   return (
@@ -94,12 +74,12 @@ export default function QuizNavigation({
         <Typography
           variant="subtitle2"
           sx={{
-            color: timeLeft < 60 ? 'error.main' : 'common.white',
-            fontWeight: 600,
+            color: 'common.white',
+            fontWeight: 700,
             letterSpacing: 0.3,
           }}
         >
-          ⏳ {formatTime(timeLeft)}
+          {grade !== null ? `Score: ${grade}` : 'Score: -'}
         </Typography>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -115,7 +95,7 @@ export default function QuizNavigation({
                 '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
               }}
             >
-              <ExtendIconAdapter />
+              <ExpandMoreIcon sx={{ fontSize: 20 }} />
             </IconButton>
           </Tooltip>
         </Box>
@@ -124,7 +104,7 @@ export default function QuizNavigation({
       {/* Collapsible content */}
       <Collapse in={expanded} timeout="auto" unmountOnExit>
         <CardContent sx={{ pt: 1, pb: 1 }}>
-          {/* Tombol Tunjukan Semua + tombol font control */}
+          {/* Tombol kontrol */}
           <Stack
             direction="row"
             spacing={1}
@@ -209,8 +189,7 @@ export default function QuizNavigation({
             {Array.from({ length: totalQuestions }, (_, idx) => {
               const numOrder = idx + 1;
               const isSelected = numOrder === selectedQuestion;
-              const isAnswered = answeredQuestions.includes(numOrder);
-              const flagged = flaggedQuestions.includes(numOrder);
+              const colors = getButtonColorsForNum(numOrder);
 
               return (
                 <Button
@@ -221,35 +200,17 @@ export default function QuizNavigation({
                     height: 36,
                     borderRadius: 1,
                     backgroundColor: isSelected
-                      ? '#1976d2'
-                      : isAnswered
-                      ? '#2e7d32'
-                      : '#ffffff',
+                      ? '#0d47a1'
+                      : colors.bg,
                     border: '1px solid #999',
-                    color: isSelected || isAnswered ? '#fff' : '#000',
+                    color: '#fff',
                     fontSize: 13,
                     fontWeight: 500,
-                    position: 'relative',
                     '&:hover': {
                       backgroundColor: isSelected
-                        ? '#115293'
-                        : isAnswered
-                        ? '#1b5e20'
-                        : '#f0f0f0',
+                        ? '#08306b'
+                        : colors.hover,
                     },
-                    ...(flagged && {
-                      '&::after': {
-                        content: '""',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '20%',
-                        backgroundColor: '#d32f2f',
-                        borderTopLeftRadius: '4px',
-                        borderTopRightRadius: '4px',
-                      },
-                    }),
                   }}
                 >
                   {numOrder}
@@ -261,8 +222,4 @@ export default function QuizNavigation({
       </Collapse>
     </Card>
   );
-}
-
-function ExtendIconAdapter() {
-  return <ExpandMoreIcon sx={{ fontSize: 20 }} />;
 }

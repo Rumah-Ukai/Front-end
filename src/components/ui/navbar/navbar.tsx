@@ -65,6 +65,9 @@ export default function Navbar() {
   const handleBerandamenu = () => {
     navigate(`/`)
   }
+   const handlePaketku = () => {
+    navigate(`/daftar-paketku`)
+  }
   const handleProfilemenu = () => {
     navigate(`/profile`)
   }
@@ -126,7 +129,7 @@ export default function Navbar() {
           <Button
             disableElevation
             disableRipple
-            onClick={handleBerandamenu}
+            onClick={handlePaketku}
             sx={{
               color: secondary,
               '&:hover': { color: primary, fontWeight: 700 },
@@ -216,7 +219,7 @@ export default function Navbar() {
               <Divider />
               <ListItem 
                 onClick={() => {
-                  handleBerandamenu();
+                  handlePaketku();
                   handleDrawerToggle();
                 }}
                 sx={{ padding: '12px 24px' }}

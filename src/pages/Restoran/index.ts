@@ -1,1 +1,1 @@
-export { default as Quizattempt } from './Paketku';
+export { default as Quizattempt } from './Quizattempt';

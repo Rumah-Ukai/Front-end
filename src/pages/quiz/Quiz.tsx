@@ -1,5 +1,5 @@
 // src/pages/Quiz/Quiz.tsx
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Stack,
   Button,
@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import QuestionForm from '../../components/beranda/soal';
+import QuestionForm, { Question as QCompQuestion } from '../../components/beranda/soal';
 import QuizNavigation from '../../components/beranda/soalnav';
 
 export default function Quiz(): JSX.Element {
@@ -32,14 +32,17 @@ export default function Quiz(): JSX.Element {
   const attemptQuery = searchParams.get('attempt');
 
   const tryoutId = tryoutIdFromState ?? tryoutIdQuery;
-  const attemptNumber = attemptFromState ?? (attemptQuery ? Number(attemptQuery) : null);
+
+  // attemptNumber sekarang dikelola sebagai state agar kita bisa start attempt jika tidak ada
+  const initialAttempt = attemptFromState ?? (attemptQuery ? Number(attemptQuery) : null);
+  const [attemptNumberState, setAttemptNumberState] = useState<number | null>(initialAttempt);
 
   // -------------------- types --------------------
   interface Question {
     id: number;
     text: string;
     options: { id: string; text: string }[];
-    answerKey: string;
+    answerKey?: string;
     explanation?: string;
     image?: string;
     table?: {
@@ -71,17 +74,19 @@ export default function Quiz(): JSX.Element {
     grade: string | null;
     status: string;
     question_order: string; // e.g. "5,2,1,3"
-    answer_order: string; // e.g. "-,a,-,b"
-    start_time: string;
+    answer_order: string; // e.g. "-,a,-,b" (may include 'f' markers)
+
     submitted_at: string | null;
+    start_time: string | null;
+    duration_minutes: number;
   }
 
   // -------------------- state --------------------
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentAttempt, setCurrentAttempt] = useState<QuizAttemptFromServer | null>(null);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [answers, setAnswers] = useState<Record<number, string>>({}); // pure answers only (no 'f')
   const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(null);
-  const [flaggedQuestions, setFlaggedQuestions] = useState<number[]>([]);
+  const [flaggedQuestions, setFlaggedQuestions] = useState<number[]>([]); // question IDs
   const [showAll, setShowAll] = useState<boolean>(false);
   const [fontSize, setFontSize] = useState<'small' | 'normal' | 'large'>('normal');
   const [loading, setLoading] = useState<boolean>(true);
@@ -106,6 +111,39 @@ export default function Quiz(): JSX.Element {
       .filter(r => r.length > 0);
   };
 
+  // parse attempt.answer_order -> { answersMap (cleaned), flaggedIds }
+  const parseAttemptAnswersAndFlags = (attempt: QuizAttemptFromServer | null) => {
+    if (!attempt) return { answersMap: {} as Record<number, string>, flaggedIds: [] as number[] };
+
+    const qOrder = (attempt.question_order || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s !== '')
+      .map(s => Number(s));
+
+    const ansArr = (attempt.answer_order || '').split(',');
+    // ensure same length
+    while (ansArr.length < qOrder.length) ansArr.push('-');
+
+    const answersMap: Record<number, string> = {};
+    const flaggedIds: number[] = [];
+
+    qOrder.forEach((qid, idx) => {
+      const token = (ansArr[idx] ?? '').trim();
+      if (token.includes('f')) flaggedIds.push(qid);
+
+      // cleaned answer: remove 'f' markers
+      const cleaned = token.replace(/f/g, '').trim();
+
+      // only treat as answered if cleaned contains an option letter (a-e)
+      if (/^[a-eA-E]$/.test(cleaned)) {
+        answersMap[qid] = cleaned.toLowerCase();
+      }
+    });
+
+    return { answersMap, flaggedIds };
+  };
+
   // -------------------- load questions + attempt --------------------
   useEffect(() => {
     let mounted = true;
@@ -119,9 +157,8 @@ export default function Quiz(): JSX.Element {
         if (!token) throw new Error('Token tidak ditemukan. Silakan login.');
 
         if (!tryoutId) throw new Error('tryoutId tidak diberikan (query string atau state).');
-        if (!attemptNumber) throw new Error('Attempt number tidak diberikan. Mulai attempt terlebih dahulu.');
 
-        // 1) fetch questions filtered by tryoutId
+        // 1) fetch questions filtered by tryoutId (this endpoint reads tryout_questions internally)
         const qRes = await axios.get<ServerQuestion[]>(
           `http://localhost:3000/questions?tryoutId=${encodeURIComponent(tryoutId)}`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -150,13 +187,30 @@ export default function Quiz(): JSX.Element {
           })(),
         }));
 
-        // 2) fetch attempt by tryoutId + attemptNumber
-        const aRes = await axios.get<QuizAttemptFromServer>(
-          `http://localhost:3000/quizattempt/${encodeURIComponent(tryoutId)}/${encodeURIComponent(String(attemptNumber))}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        // 2) fetch or create attempt by tryoutId + attemptNumberState
+        let attemptData: QuizAttemptFromServer | null = null;
 
-        const attemptData = aRes.data as QuizAttemptFromServer | null;
+        if (!attemptNumberState) {
+          // start a new attempt if not provided
+          const startRes = await axios.post(
+            `http://localhost:3000/quizattempt/start`,
+            { tryout_id: tryoutId },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          attemptData = startRes.data as QuizAttemptFromServer;
+          if (!mounted) return;
+          setCurrentAttempt(attemptData);
+          setAttemptNumberState(attemptData.attempt_number);
+        } else {
+          // fetch existing attempt
+          const aRes = await axios.get<QuizAttemptFromServer>(
+            `http://localhost:3000/quizattempt/${encodeURIComponent(tryoutId)}/${encodeURIComponent(String(attemptNumberState))}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          attemptData = aRes.data as QuizAttemptFromServer;
+          if (!mounted) return;
+          setCurrentAttempt(attemptData);
+        }
 
         // 3) compute orderedQuestions and initial answers
         let orderedQuestions: Question[] = mapped.slice();
@@ -177,14 +231,12 @@ export default function Quiz(): JSX.Element {
           orderedQuestions = qOrder.map(id => qMap.get(id)).filter(Boolean) as Question[];
 
           // parse answer_order aligned with orderedQuestions positions
-          if (attemptData.answer_order) {
-            const ansArr = attemptData.answer_order.split(',').map(x => x.trim());
-            ansArr.forEach((val, idx) => {
-              if (!val || val === '-') return;
-              const q = orderedQuestions[idx];
-              if (q) answersFromAttempt[q.id] = val;
-            });
-          }
+          const { answersMap, flaggedIds } = parseAttemptAnswersAndFlags(attemptData);
+
+          Object.assign(answersFromAttempt, answersMap);
+
+          // set flagged questions into parent state (single source of truth)
+          if (mounted) setFlaggedQuestions(flaggedIds);
         } else {
           // fallback: sort by id asc
           orderedQuestions.sort((a, b) => a.id - b.id);
@@ -193,8 +245,7 @@ export default function Quiz(): JSX.Element {
         if (!mounted) return;
 
         setQuestions(orderedQuestions);
-        setAnswers(answersFromAttempt);
-        setCurrentAttempt(attemptData ?? null);
+        setAnswers(answersFromAttempt); // NOTE: answersFromAttempt has CLEANED answers (no 'f')
         setSelectedQuestionId(orderedQuestions.length > 0 ? orderedQuestions[0].id : null);
         setLoading(false);
       } catch (err) {
@@ -207,7 +258,8 @@ export default function Quiz(): JSX.Element {
     void load();
 
     return () => { mounted = false; };
-  }, [tryoutId, attemptNumber]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tryoutId, attemptNumberState]);
 
   // -------------------- handle answer change (sync to backend) --------------------
   const handleAnswerChange = async (questionId: number, answerId: string): Promise<void> => {
@@ -240,18 +292,18 @@ export default function Quiz(): JSX.Element {
     // Find position for this questionId in qOrder, and set answer
     const idx = qOrder.findIndex(qid => qid === questionId);
     if (idx === -1) {
-      // Question not found in the order — this shouldn't happen; log and return
       console.error('Question id not found in currentAttempt.question_order', questionId);
       return;
     }
-    ansArr[idx] = answerId;
+
+    // preserve flag if present: if ansArr[idx] contains 'f', keep it
+    const hasFlag = ansArr[idx]?.includes('f') ?? false;
+    ansArr[idx] = (answerId || '-').toString() + (hasFlag ? 'f' : '');
 
     // Build new answer_order string
     const updatedAnswerOrder = ansArr.join(',');
 
     try {
-      // PATCH endpoint uses tryoutId + attemptNumber (backend expects this route)
-      // if backend expects different route, adapt accordingly.
       const res = await axios.patch(
         `http://localhost:3000/quizattempt/${encodeURIComponent(currentAttempt.tryout_id)}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
         { answer_order: updatedAnswerOrder },
@@ -260,11 +312,102 @@ export default function Quiz(): JSX.Element {
 
       // update attempt state with returned row (if backend returns updated row)
       if (res.status === 200 && res.data) {
-        setCurrentAttempt(res.data as QuizAttemptFromServer);
+        const srv = res.data as QuizAttemptFromServer;
+        setCurrentAttempt(srv);
+
+        // reparse answers & flags from server response to ensure sync
+        const { answersMap, flaggedIds } = parseAttemptAnswersAndFlags(srv);
+        setAnswers(answersMap);
+        setFlaggedQuestions(flaggedIds);
       }
     } catch (err) {
       console.error('Gagal update jawaban:', err);
       // optionally set error state or show toast
+    }
+  };
+
+  // -------------------- toggle flag (centralized + sync) --------------------
+  const handleToggleFlag = async (questionId: number): Promise<void> => {
+    const willBeFlagged = !flaggedQuestions.includes(questionId);
+
+    // optimistic UI update
+    setFlaggedQuestions(prev => (willBeFlagged ? Array.from(new Set([...prev, questionId])) : prev.filter(id => id !== questionId)));
+
+    // optimistic update of currentAttempt.answer_order and keep answers state unchanged (answers store only letters)
+    let optimisticAnsArr: string[] | null = null;
+    if (currentAttempt) {
+      const qOrder = currentAttempt.question_order.split(',').map(s => Number(s));
+      const ansArr = (currentAttempt.answer_order || '').split(',');
+      while (ansArr.length < qOrder.length) ansArr.push('-');
+
+      const idx = qOrder.indexOf(questionId);
+      if (idx !== -1) {
+        const currentAns = ansArr[idx] || '-';
+        // remove old f markers
+        const cleaned = currentAns.replace(/f/g, '');
+        // if willBeFlagged -> append 'f', otherwise keep cleaned only
+        ansArr[idx] = (cleaned === '-' ? '' : cleaned) + (willBeFlagged ? 'f' : '');
+      }
+      optimisticAnsArr = ansArr;
+      setCurrentAttempt(prev => prev ? { ...prev, answer_order: ansArr.join(',') } : prev);
+    }
+
+    // sync to backend
+    try {
+      const token = localStorage.getItem('token');
+      if (!token || !currentAttempt) {
+        // update UI only if no token or attempt (rare)
+        return;
+      }
+
+      const patchBody = { answer_order: optimisticAnsArr ? optimisticAnsArr.join(',') : currentAttempt.answer_order };
+      const res = await axios.patch(
+        `http://localhost:3000/quizattempt/${encodeURIComponent(currentAttempt.tryout_id)}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
+        patchBody,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.status === 200 && res.data) {
+        const srv = res.data as QuizAttemptFromServer;
+        setCurrentAttempt(srv);
+
+        // parse server's authoritative data and update answers & flags
+        const { answersMap, flaggedIds } = parseAttemptAnswersAndFlags(srv);
+        setAnswers(answersMap);
+        setFlaggedQuestions(flaggedIds);
+      } else {
+        // fallback: re-fetch attempt to be safe
+        const aRes = await axios.get<QuizAttemptFromServer>(
+          `http://localhost:3000/quizattempt/${encodeURIComponent(currentAttempt.tryout_id)}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const srv = aRes.data;
+        setCurrentAttempt(srv);
+        const { answersMap, flaggedIds } = parseAttemptAnswersAndFlags(srv);
+        setAnswers(answersMap);
+        setFlaggedQuestions(flaggedIds);
+      }
+    } catch (err) {
+      console.error('Gagal sync flag ke backend:', err);
+      // rollback optimistic UI if sync fails
+      setFlaggedQuestions(prev => (willBeFlagged ? prev.filter(id => id !== questionId) : Array.from(new Set([...prev, questionId]))));
+      // re-fetch to resync
+      try {
+        const token = localStorage.getItem('token');
+        if (token && currentAttempt) {
+          const aRes = await axios.get<QuizAttemptFromServer>(
+            `http://localhost:3000/quizattempt/${encodeURIComponent(currentAttempt.tryout_id)}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          const srv = aRes.data;
+          setCurrentAttempt(srv);
+          const { answersMap, flaggedIds } = parseAttemptAnswersAndFlags(srv);
+          setAnswers(answersMap);
+          setFlaggedQuestions(flaggedIds);
+        }
+      } catch (err2) {
+        console.error('Rollback fetch attempt gagal', err2);
+      }
     }
   };
 
@@ -278,46 +421,48 @@ export default function Quiz(): JSX.Element {
     }
 
     try {
-      // backend finalize route expects attempt.id
+      // compute grade locally (two-decimal string like "83.33")
+      const total = questions.length || 1;
+      const correctCount = questions.reduce((acc, q) => {
+        const ua = (answers[q.id] || '').toLowerCase();
+        return acc + (q.answerKey && ua === q.answerKey ? 1 : 0);
+      }, 0);
+      const percent = (correctCount / total) * 100;
+      const gradeStr = percent.toFixed(2); // e.g. "83.33"
+
+      // Use the generic PATCH endpoint (no '/finalize' suffix) — server accepts grade/status/submitted_at via this route
+      const body = {
+        status: 'finished',
+        submitted_at: new Date().toISOString(),
+        grade: gradeStr,
+      };
+
       const res = await axios.patch(
-        `http://localhost:3000/quizattempt/${encodeURIComponent(currentAttempt.tryout_id)}/${encodeURIComponent(String(currentAttempt.attempt_number))}/finalize`,
-        {},
+        `http://localhost:3000/quizattempt/${encodeURIComponent(currentAttempt.tryout_id)}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
+        body,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      if (res.status === 200 || res.status === 201) {
+      if (res.status === 200 && res.data) {
         const updatedAttempt = res.data as QuizAttemptFromServer;
         setCurrentAttempt(updatedAttempt);
-        alert(`Attempt selesai! Grade kamu: ${updatedAttempt.grade}`);
+        alert(`Attempt selesai! Grade kamu: ${updatedAttempt.grade ?? gradeStr}`);
       } else {
-        alert('Finalize attempt gagal.');
+        // fallback behavior: show computed grade even if server didn't return it
+        alert(`Attempt selesai! Grade kamu: ${gradeStr}`);
       }
-    } catch (err) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
       console.error('Gagal finalize attempt:', err);
-      alert('Gagal finalisasi attempt');
+      // better error message for 404 specifically
+      if (err?.response?.status === 404) {
+        alert('Finalize gagal: endpoint tidak ditemukan (404). Silakan periksa server.');
+      } else {
+        alert('Gagal finalisasi attempt');
+      }
     }
   };
 
-  // -------------------- other handlers --------------------
-  const handleToggleFlag = (questionId: number): void => {
-    setFlaggedQuestions(prev => prev.includes(questionId) ? prev.filter(id => id !== questionId) : [...prev, questionId]);
-  };
-
-  const handleSubmit = useCallback(() => {
-    // local calculation (if you want to compute before server finalize)
-    const userAnswers = questions.map(q => ({
-      questionId: q.id,
-      userAnswer: answers[q.id] ?? null,
-      correctAnswer: q.answerKey,
-      isCorrect: answers[q.id] === q.answerKey,
-    }));
-
-    const correctCount = userAnswers.filter(ua => ua.isCorrect).length;
-    const score = Math.round((correctCount / (questions.length || 1)) * 100);
-
-    alert(`Kamu menjawab benar ${correctCount} dari ${questions.length} soal.\nSkor kamu: ${score}`);
-    // NOTE: Final server-side grading happens in handleFinalizeAttempt()
-  }, [answers, questions]);
 
   const goToPreviousQuestion = (): void => {
     if (selectedQuestionId === null) return;
@@ -333,18 +478,17 @@ export default function Quiz(): JSX.Element {
     }
   };
 
-  const allAnswered = questions.length > 0 && Object.keys(answers).length === questions.length;
-  const durationMinutes = 90;
+  // new: check allAnswered by ensuring each question has a valid answer letter (a-e)
+  const allAnswered = questions.length > 0 && questions.every(q => /^[a-e]$/.test((answers[q.id] ?? '').toLowerCase()));
 
   // Intersection observer for showAll
   useEffect(() => {
     if (!showAll || questions.length === 0) return;
 
-    let margin = '-50px 0px -60% 0px';
+     let margin = '-50px 0px -40% 0px';
     if (isMobile) margin = '-60px 0px -23% 0px';
-    else if (isTablet) margin = '-60px 0px -53% 0px';
-    else if (isLaptop) margin = '-60px 0px -40% 0px';
-    else if (isLarge) margin = '-60px 0px -60% 0px';
+    else if (isTablet) margin = '-60px 0px -43% 0px';
+    else if (isLarge) margin = '-60px 0px -30% 0px';
 
     const observer = new IntersectionObserver((entries) => {
       const visible = entries.filter(e => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
@@ -419,7 +563,9 @@ export default function Quiz(): JSX.Element {
               showAll
                 ? (() => {
                     if (!questions.length) return 1;
-                    const idx = questions.findIndex(q => q.id === (activeInViewId ?? questions[0].id));
+                    const idx = questions.findIndex(
+                      q => q.id === (activeInViewId ?? questions[0].id)
+                    );
                     return idx >= 0 ? idx + 1 : 1;
                   })()
                 : (() => {
@@ -428,11 +574,9 @@ export default function Quiz(): JSX.Element {
                   })()
             }
             onSelectQuestion={handleSelectQuestion}
-            answeredQuestions={Object.keys(answers).map(aid => {
-              const qid = Number(aid);
-              const idx = questions.findIndex(q => q.id === qid);
-              return idx + 1;
-            })}
+            answeredQuestions={questions
+              .map((q, idx) => (answers[q.id] ? idx + 1 : -1))
+              .filter(n => n !== -1)}
             flaggedQuestions={flaggedQuestions.map(fid => {
               const idx = questions.findIndex(q => q.id === fid);
               return idx + 1;
@@ -440,13 +584,14 @@ export default function Quiz(): JSX.Element {
             onToggleFlag={(idNumOrder: number) => {
               const idx = idNumOrder - 1;
               const q = questions[idx];
-              if (q) handleToggleFlag(q.id);
+              if (q) void handleToggleFlag(q.id);
             }}
             showAll={showAll}
             onToggleShowAll={() => setShowAll(prev => !prev)}
-            durationMinutes={durationMinutes}
-            onTimeUp={handleSubmit}
+            onTimeUp={handleFinalizeAttempt}
             onFontSizeChange={(size) => setFontSize(size)}
+            startTime={currentAttempt?.start_time ?? ''}
+            durationMinutes={currentAttempt?.duration_minutes ?? 0}
           />
         </Box>
       )}
@@ -456,32 +601,40 @@ export default function Quiz(): JSX.Element {
         <Stack spacing={4} sx={{ width: '100%', flexGrow: 1 }}>
           {showAll ? (
             <>
-              {questions.map((q) => (
-                <Stack key={q.id} ref={(el) => (questionRefs.current[q.id] = el)} data-qid={q.id}>
-                  <QuestionForm
-                    questions={[q]}
-                    selectedQuestionId={q.id}
-                    answers={answers}
-                    onAnswerChange={(qid: number, aid: string) => { void handleAnswerChange(qid, aid); }}
-                    flaggedQuestions={flaggedQuestions}
-                    onToggleFlag={handleToggleFlag}
-                    fontSize={fontSize}
-                  />
-                </Stack>
-              ))}
-              <Button variant="contained" size="large" color={allAnswered ? 'primary' : 'inherit'} disabled={!allAnswered} onClick={handleSubmit}>
+              {/* single form with all questions; register refs */}
+              <QuestionForm
+                questions={questions as QCompQuestion[]}
+                answers={answers}
+                onAnswerChange={(qid: number, aid: string) => { void handleAnswerChange(qid, aid); }}
+                flaggedQuestions={flaggedQuestions}
+                onToggleFlag={(qid: number) => { void handleToggleFlag(qid); }}
+                fontSize={fontSize}
+                currentAttemptId={{
+                  tryoutId: tryoutId ?? '',
+                  attemptNumber: attemptNumberState ?? 0,
+                }}
+                registerQuestionRef={(id: number, el: HTMLDivElement | null) => {
+                  questionRefs.current[id] = el;
+                }}
+              />
+
+              <Button variant="contained" size="large" color={allAnswered ? 'primary' : 'inherit'} disabled={!allAnswered} onClick={handleFinalizeAttempt}>
                 Submit
               </Button>
             </>
           ) : (
             <QuestionForm
-              questions={questions}
+              questions={questions as QCompQuestion[]}
               selectedQuestionId={selectedQuestionId ?? undefined}
               answers={answers}
               onAnswerChange={(qid: number, aid: string) => { void handleAnswerChange(qid, aid); }}
               flaggedQuestions={flaggedQuestions}
-              onToggleFlag={handleToggleFlag}
+              onToggleFlag={(qid: number) => { void handleToggleFlag(qid); }}
               fontSize={fontSize}
+              currentAttemptId={{
+                tryoutId: tryoutId ?? '',
+                attemptNumber: attemptNumberState ?? 0,
+              }}
             />
           )}
 
@@ -510,7 +663,9 @@ export default function Quiz(): JSX.Element {
               showAll
                 ? (() => {
                     if (!questions.length) return 1;
-                    const idx = questions.findIndex(q => q.id === (activeInViewId ?? questions[0].id));
+                    const idx = questions.findIndex(
+                      q => q.id === (activeInViewId ?? questions[0].id)
+                    );
                     return idx >= 0 ? idx + 1 : 1;
                   })()
                 : (() => {
@@ -519,11 +674,9 @@ export default function Quiz(): JSX.Element {
                   })()
             }
             onSelectQuestion={handleSelectQuestion}
-            answeredQuestions={Object.keys(answers).map(aid => {
-              const qid = Number(aid);
-              const idx = questions.findIndex(q => q.id === qid);
-              return idx + 1;
-            })}
+            answeredQuestions={questions
+              .map((q, idx) => (answers[q.id] ? idx + 1 : -1))
+              .filter(n => n !== -1)}
             flaggedQuestions={flaggedQuestions.map(fid => {
               const idx = questions.findIndex(q => q.id === fid);
               return idx + 1;
@@ -531,13 +684,14 @@ export default function Quiz(): JSX.Element {
             onToggleFlag={(idNumOrder: number) => {
               const idx = idNumOrder - 1;
               const q = questions[idx];
-              if (q) handleToggleFlag(q.id);
+              if (q) void handleToggleFlag(q.id);
             }}
             showAll={showAll}
             onToggleShowAll={() => setShowAll(prev => !prev)}
-            durationMinutes={durationMinutes}
-            onTimeUp={handleSubmit}
+            onTimeUp={handleFinalizeAttempt}
             onFontSizeChange={(size) => setFontSize(size)}
+            startTime={currentAttempt?.start_time ?? ''}
+            durationMinutes={currentAttempt?.duration_minutes ?? 0}
           />
 
           {!showAll && (

@@ -35,9 +35,9 @@ import { Register } from './pages/Registrasi';
 import { Profile } from './pages/profile';
 // import { ProfileLupaPassword } from './pages/profile/Lupapassword';
 import { ProfileLupaVerifikasi } from './pages/profile/Lupapassword/Lupaverifikasi';
-import { About } from './pages/About';
+import { Quizreview } from './pages/About';
 // import { Flores } from './pages/About/flores';
-import { Bali } from './pages/About/list';
+import { Paketku } from './pages/Beranda/Paketku';
 // import { Kupang } from './pages/About/kupang';
 // import { Mataram } from './pages/About/mataram';
 import {Oleh} from './pages/Oleh';
@@ -115,24 +115,24 @@ const router = createBrowserRouter([
     )
   },
   {
-    path: '/cari-wisata',
+    path: '/review',
     element: (
       // <ProtectedRoute>
       <>
-        <Navbarwhite />
-        <About />
+        <Navbar />
+        <Quizreview />
         <Footer/>
       </>
       // </ProtectedRoute>
     )
   },
   {
-    path: '/wisata',
+    path: '/daftar-paketku',
     element: (
       // <ProtectedRoute>
       <>
         <Navbar />
-        <Bali />
+        <Paketku />
         <Footer/>
       </>
       // </ProtectedRoute>

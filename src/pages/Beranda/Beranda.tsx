@@ -6,7 +6,7 @@ import RowAndColumnSpacing from '../../components/beranda/cardpaket';
 // import YoutubeVideo from '../../components/beranda/youtube';
 // import Balimenunggu from '../../components/beranda/balimenunggu';
 // import BerandaData from './berandadata';
-import '../../assets/font/telkomselbatik.css';
+
 
 // interface BerandaData {
 //   imageSrc: string;
