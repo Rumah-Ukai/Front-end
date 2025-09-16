@@ -39,6 +39,7 @@ interface UserPaket {
   price: number;
   created_at: string;
   image?: string | null;
+  closed_at?: string | null; // ✅ kolom baru
 }
 function PackageCard({ title }: PackageCardProps) {
   const [isMobile, setIsMobile] = useState(false);
@@ -196,8 +197,10 @@ export default function PaketGrid() {
     fetchUserPakets();
   }, []);
 
-  const handleItemClick = (id: string) => {
-    navigate(`/paketku?id=${encodeURIComponent(id)}`);
+  const handleItemClick = (id: string, expired: boolean) => {
+    if (!expired) {
+      navigate(`/paketku?id=${encodeURIComponent(id)}`);
+    }
   };
 
   const totalPages = Math.ceil(userPakets.length / itemsPerPage);
@@ -212,6 +215,21 @@ export default function PaketGrid() {
     return Number(price).toLocaleString('id-ID');
   };
 
+  // ✅ Format tanggal ke Indonesia
+  const formatDateIndo = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return new Intl.DateTimeFormat('id-ID', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    }).format(date);
+  };
+
+  // ✅ Check apakah sudah expired
+  const isExpired = (closed_at: string) => {
+    return new Date(closed_at) < new Date();
+  };
+
   return (
     <Stack
       justifyContent={'space-between'}
@@ -220,56 +238,82 @@ export default function PaketGrid() {
       sx={{ width: '100%', alignItems: 'flex-start' }}
     >
       <Grid container spacing={{ xs: 0, lg: 0, sm: 0 }} sx={{ width: '100%' }}>
-        {currentItems.map((item) => (
-          <Grid
-            item
-            key={item.id}
-            pb={{ xs: '24px' }}
-            pl={{ xs: '24px' }}
-            pr={{ xs: '24px' }}
-            xs={12}
-            sm={6}
-            md={4}
-          >
-            <Card
-              sx={{
-                borderRadius: 3,
-                cursor: 'pointer',
-                transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-                '&:hover': {
-                  transform: 'scale(1.03)',
-                  boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
-                },
-              }}
-              onClick={() => handleItemClick(item.id)}
+        {currentItems.map((item) => {
+          const expired = item.closed_at ? isExpired(item.closed_at) : false;
+          return (
+            <Grid
+              item
+              key={item.id}
+              pb={{ xs: '24px' }}
+              pl={{ xs: '24px' }}
+              pr={{ xs: '24px' }}
+              xs={12}
+              sm={6}
+              md={4}
             >
-              {item.image ? (
-                <CardMedia
-                  component="img"
-                  height="140"
-                  image={item.image}
-                  alt={item.name}
-                />
-              ) : (
-                <PackageCard title={item.name} />
-              )}
+              <Card
+                sx={{
+                  borderRadius: 3,
+                  cursor: expired ? 'not-allowed' : 'pointer',
+                  opacity: expired ? 0.7 : 1,
+                  transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                  '&:hover': expired
+                    ? {}
+                    : {
+                        transform: 'scale(1.03)',
+                        boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
+                      },
+                }}
+                onClick={() => handleItemClick(item.id, expired)}
+              >
+                {item.image ? (
+                  <CardMedia
+                    component="img"
+                    height="140"
+                    image={item.image}
+                    alt={item.name}
+                  />
+                ) : (
+                  <PackageCard title={item.name} />
+                )}
 
-              <CardContent>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                  {item.name}
-                </Typography>
+                <CardContent>
+                  <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+                    {item.name}
+                  </Typography>
 
-                <Typography
-                  variant="h6"
-                  color="primary"
-                  sx={{ fontWeight: 700, marginTop: 1 }}
-                >
-                  Rp. {formatPrice(item.price)}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+                  {item.closed_at ? (
+                    expired ? (
+                      <Typography
+                        variant="body1"
+                        color="error"
+                        sx={{ fontWeight: 600, marginTop: 1 }}
+                      >
+                        Expired: {formatDateIndo(item.closed_at)}
+                      </Typography>
+                    ) : (
+                      <Typography
+                        variant="body1"
+                        color="warning.main"
+                        sx={{ fontWeight: 600, marginTop: 1 }}
+                      >
+                        Tutup: {formatDateIndo(item.closed_at)}
+                      </Typography>
+                    )
+                  ) : (
+                    <Typography
+                      variant="h6"
+                      color="primary"
+                      sx={{ fontWeight: 700, marginTop: 1 }}
+                    >
+                      Rp. {formatPrice(item.price)}
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
 
       {totalPages > 1 && (

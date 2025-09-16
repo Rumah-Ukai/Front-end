@@ -347,7 +347,7 @@ export default function Tryout() {
       <Typography variant="body2">{tryoutData.description}</Typography>
 
       <Stack spacing={1}>
-        <Typography><strong>Created At:</strong> {tryoutData.created_at}</Typography>
+        {/* <Typography><strong>Created At:</strong> {tryoutData.created_at}</Typography> */}
         <Typography><strong>Attempts Allowed:</strong> {tryoutData.attemptsAllowed ?? 3}</Typography>
         <Typography><strong>Time Limit:</strong> {displayTimeLimit}</Typography>
         <Typography><strong>Grading Method:</strong> {tryoutData.gradingMethod ?? 'N/A'}</Typography>
@@ -378,84 +378,149 @@ export default function Tryout() {
       <Typography variant="h5">Previous Attempts</Typography>
 
       {isMobile ? (
-        <Stack spacing={2}>
-          {attempts.map((a, idx) => {
+  <Stack spacing={2}>
+    {[...attempts]
+      .sort((a, b) => a.attempt_number - b.attempt_number) // ✅ urutkan lama → baru
+      .map((a, idx) => {
+        const remainingSec = getRemainingSeconds(a);
+        const isActive = a.status === 'ongoing' && remainingSec > 0;
+        const isExpiredOngoing = a.status === 'ongoing' && remainingSec <= 0;
+        const isFinished =
+          a.status === 'finished' ||
+          a.status === 'submitted' ||
+          a.status === 'graded';
+        return (
+          <Paper
+            key={`${a.tryout_id}-${a.attempt_number}`}
+            sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}
+          >
+            <Stack spacing={1}>
+              <Typography>
+                <strong>Attempt #{idx + 1}</strong>
+              </Typography>
+              <Typography>
+                Status:{' '}
+                {isFinished
+                  ? 'Finished'
+                  : isExpiredOngoing
+                  ? 'Time expired'
+                  : `Ongoing — ${formatHMS(remainingSec)}`}
+              </Typography>
+              <Typography>Grade: {a.grade ?? '-'}</Typography>
+              <Stack direction="row" spacing={1}>
+                {a.status === 'ongoing' ? (
+                  isActive ? (
+                    <Button
+                      size="small"
+                      variant="contained"
+                      onClick={() => handleContinueAttempt(a)}
+                    >
+                      Continue
+                    </Button>
+                  ) : (
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="secondary"
+                      onClick={() => void handleGradeAttempt(a)}
+                    >
+                      Grade
+                    </Button>
+                  )
+                ) : (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => handleReviewAttempt(a)}
+                  >
+                    Review
+                  </Button>
+                )}
+              </Stack>
+            </Stack>
+          </Paper>
+        );
+      })}
+  </Stack>
+) : (
+  <Paper
+    elevation={0}
+    sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}
+  >
+    <Table>
+      <TableHead>
+        <TableRow>
+          <TableCell>No.</TableCell>
+          <TableCell>Status / Time Left</TableCell>
+          <TableCell>Grade</TableCell>
+          <TableCell>Action</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {[...attempts]
+          .sort((a, b) => a.attempt_number - b.attempt_number) // ✅ urutkan lama → baru
+          .map((a, idx) => {
             const remainingSec = getRemainingSeconds(a);
             const isActive = a.status === 'ongoing' && remainingSec > 0;
-            const isExpiredOngoing = a.status === 'ongoing' && remainingSec <= 0;
-            const isFinished = a.status === 'finished' || a.status === 'submitted' || a.status === 'graded';
+            const isExpiredOngoing =
+              a.status === 'ongoing' && remainingSec <= 0;
+            const isFinished =
+              a.status === 'finished' ||
+              a.status === 'submitted' ||
+              a.status === 'graded';
             return (
-              <Paper key={`${a.tryout_id}-${a.attempt_number}`} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-                <Stack spacing={1}>
-                  <Typography><strong>Attempt #{idx + 1}</strong></Typography>
-                  <Typography>
-                    Status: {isFinished ? 'Finished' : isExpiredOngoing ? 'Time expired' : `Ongoing — ${formatHMS(remainingSec)}`}
-                  </Typography>
-                  <Typography>Grade: {a.grade ?? '-'}</Typography>
-                  <Stack direction="row" spacing={1}>
-                    {a.status === 'ongoing' ? (
-                      isActive ? (
-                        <Button size="small" variant="contained" onClick={() => handleContinueAttempt(a)}>Continue</Button>
-                      ) : (
-                        <Button size="small" variant="contained" color="secondary" onClick={() => void handleGradeAttempt(a)}>Grade</Button>
-                      )
+              <TableRow key={`${a.tryout_id}-${a.attempt_number}`}>
+                <TableCell>{idx + 1}</TableCell>
+                <TableCell>
+                  {isFinished ? (
+                    <Typography>Finished</Typography>
+                  ) : isExpiredOngoing ? (
+                    <Typography color="warning.main">Time expired</Typography>
+                  ) : (
+                    <Typography color="primary">
+                      Ongoing — {formatHMS(remainingSec)}
+                    </Typography>
+                  )}
+                </TableCell>
+                <TableCell>{a.grade ?? '-'}</TableCell>
+                <TableCell>
+                  {a.status === 'ongoing' ? (
+                    isActive ? (
+                      <Button
+                        size="small"
+                        variant="contained"
+                        onClick={() => handleContinueAttempt(a)}
+                      >
+                        Continue
+                      </Button>
                     ) : (
-                      <Button size="small" variant="outlined" onClick={() => handleReviewAttempt(a)}>Review</Button>
-                    )}
-                  </Stack>
-                </Stack>
-              </Paper>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="secondary"
+                        onClick={() => void handleGradeAttempt(a)}
+                      >
+                        Grade
+                      </Button>
+                    )
+                  ) : (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => handleReviewAttempt(a)}
+                    >
+                      Review
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
             );
           })}
-        </Stack>
-      ) : (
-        <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>No.</TableCell>
-                <TableCell>Status / Time Left</TableCell>
-                <TableCell>Grade</TableCell>
-                <TableCell>Action</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {attempts.map((a, idx) => {
-                const remainingSec = getRemainingSeconds(a);
-                const isActive = a.status === 'ongoing' && remainingSec > 0;
-                const isExpiredOngoing = a.status === 'ongoing' && remainingSec <= 0;
-                const isFinished = a.status === 'finished' || a.status === 'submitted' || a.status === 'graded';
-                return (
-                  <TableRow key={`${a.tryout_id}-${a.attempt_number}`}>
-                    <TableCell>{idx + 1}</TableCell>
-                    <TableCell>
-                      {isFinished ? (
-                        <Typography>Finished</Typography>
-                      ) : isExpiredOngoing ? (
-                        <Typography color="warning.main">Time expired</Typography>
-                      ) : (
-                        <Typography color="primary">Ongoing — {formatHMS(remainingSec)}</Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>{a.grade ?? '-'}</TableCell>
-                    <TableCell>
-                      {a.status === 'ongoing' ? (
-                        isActive ? (
-                          <Button size="small" variant="contained" onClick={() => handleContinueAttempt(a)}>Continue</Button>
-                        ) : (
-                          <Button size="small" variant="contained" color="secondary" onClick={() => void handleGradeAttempt(a)}>Grade</Button>
-                        )
-                      ) : (
-                        <Button size="small" variant="outlined" onClick={() => handleReviewAttempt(a)}>Review</Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Paper>
-      )}
+      </TableBody>
+    </Table>
+  </Paper>
+)}
+
 
       <Button variant="contained" onClick={() => void handleStartAttempt()} disabled={startDisabled}>
         Start New Attempt

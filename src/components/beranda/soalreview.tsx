@@ -20,7 +20,7 @@ import {
 import CheckIcon from '@mui/icons-material/Check';
 import ClearIcon from '@mui/icons-material/Clear';
 import { InlineMath } from 'react-katex';
-import ReactMarkdown from 'react-markdown';
+// import ReactMarkdown from 'react-markdown';
 
 interface Option {
   id: string;
@@ -132,7 +132,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
         const isCorrect = q.answerKey && userAnswer === q.answerKey;
         const currentFontSize = getFontSize(fontSize);
         const parsedTable = parseTable(q.table);
-        const parsedExplanationTable = parseTable(q.explanationTable);
+        // const parsedExplanationTable = parseTable(q.explanationTable);
 
         return (
           <div
@@ -241,7 +241,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
                   </RadioGroup>
 
                   {/* Pembahasan */}
-                  {q.explanation && (
+                  {/* {q.explanation && (
                     <Box
                       sx={{
                         mt: 2,
@@ -346,7 +346,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
                         </TableBody>
                       </Table>
                     </Box>
-                  )}
+                  )} */}
                 </CardContent>
               </Collapse>
             </Card>

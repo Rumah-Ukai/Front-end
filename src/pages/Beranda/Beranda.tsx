@@ -46,7 +46,7 @@ const bgClr2 = '#f0f0f0ff';
         sx={{
           display: 'flex',
           height: 'auto',
-          width: '100%',
+          width: 'auto',
           margin: '0',
          
           borderRadius: '0 0 0px 0px',
@@ -61,6 +61,7 @@ const bgClr2 = '#f0f0f0ff';
             fontSize: { xs: '28px', sm: '45px', md: '60px' },
             // paddingTop: '50px',
             textAlign: 'left',
+            width:'100%'
           }}
         >
           Paket Try out
@@ -73,6 +74,7 @@ const bgClr2 = '#f0f0f0ff';
             fontSize: { xs: '16px', sm: '20px', md: '25px' },
             textAlign: 'left',
             // marginBottom: '85px',
+                  width:'100%'
           }}
         >
           Paket try out yang tersedia

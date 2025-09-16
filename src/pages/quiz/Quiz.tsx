@@ -430,11 +430,28 @@ export default function Quiz(): JSX.Element {
       const percent = (correctCount / total) * 100;
       const gradeStr = percent.toFixed(2); // e.g. "83.33"
 
-      // Use the generic PATCH endpoint (no '/finalize' suffix) — server accepts grade/status/submitted_at via this route
+      // Build authoritative answer_order to send:
+      // - preserve flags from flaggedQuestions
+      // - use local answers state (clean letters) for each question in the attempt order
+      const qOrder = currentAttempt.question_order
+        .split(',')
+        .map(s => s.trim())
+        .filter(s => s !== '')
+        .map(s => Number(s));
+
+      const ansArrToSend = qOrder.map((qid) => {
+        const a = (answers[qid] || '-').toString().trim().toLowerCase();
+        const letter = /^[a-e]$/.test(a) ? a : '-';
+        const withFlag = flaggedQuestions.includes(qid) && letter !== '-' ? `${letter}f` : (flaggedQuestions.includes(qid) && letter === '-' ? `f` : letter);
+        // If it's flagged and no letter we send 'f' (keeps semantics consistent with server parsing)
+        return withFlag;
+      });
+
       const body = {
         status: 'finished',
         submitted_at: new Date().toISOString(),
         grade: gradeStr,
+        answer_order: ansArrToSend.join(','),
       };
 
       const res = await axios.patch(

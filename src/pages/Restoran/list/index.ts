@@ -1,1 +1,1 @@
-export { default as RestoranBali } from './Restoran';
+export { default as Pdf } from './Pdfview';

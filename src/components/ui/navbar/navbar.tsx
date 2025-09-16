@@ -1,22 +1,48 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppBar, Drawer, List, ListItem, ListItemText, Stack, Typography, Button, IconButton, Menu, MenuItem, Divider, useMediaQuery } from '@mui/material';
+import { 
+  AppBar, 
+  Drawer, 
+  List, 
+  ListItem, 
+  ListItemText, 
+  Stack, 
+  Typography, 
+  Button, 
+  IconButton, 
+  Menu, 
+  MenuItem, 
+  Divider, 
+  useMediaQuery, 
+  Avatar 
+} from '@mui/material';
 import '@fontsource/poppins/300.css';
 import '@fontsource/poppins/400.css';
 import '@fontsource/poppins/500.css';
 import '@fontsource/poppins/700.css';
 import '@fontsource/poppins/800.css';
 import logoTripsel from '../../../assets/logoukai.png';
-import { Icon } from '@iconify/react/dist/iconify.js';
+
 import { useTheme } from '@mui/material/styles';
 import { Menu as MenuIcon } from '@mui/icons-material';
+
+// ✅ Mapping foto dari DB ke asset di web
+import foto1 from '../../../assets/fotouser/foto1.png';
+import foto2 from '../../../assets/fotouser/foto2.png';
+import foto3 from '../../../assets/fotouser/foto3.png';
+
+const fotoMap: Record<string, string> = {
+  foto1,
+  foto2,
+  foto3,
+};
 
 export default function Navbar() {
   const [isOpaque, setIsOpaque] = useState(false);
   const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
   const [menuActive, setMenuActive] = useState(false);
-  const [userFullName, setUserFullName] = useState('');
+  const [userFoto, setUserFoto] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const theme = useTheme();
@@ -37,8 +63,8 @@ export default function Navbar() {
             },
           });
           const data = await response.json();
-          if (data && data.full_name) {
-            setUserFullName(data.full_name);
+          if (data && data.foto) {
+            setUserFoto(data.foto); // disimpan string dari DB (misal: "foto1")
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
@@ -63,18 +89,18 @@ export default function Navbar() {
   };
 
   const handleBerandamenu = () => {
-    navigate(`/`)
-  }
-   const handlePaketku = () => {
-    navigate(`/daftar-paketku`)
-  }
+    navigate(`/`);
+  };
+  const handlePaketku = () => {
+    navigate(`/daftar-paketku`);
+  };
   const handleProfilemenu = () => {
-    navigate(`/profile`)
-  }
+    navigate(`/profile`);
+  };
   const handleLogout = () => {
     localStorage.removeItem('token');
-    navigate(`/login`)
-  }
+    navigate(`/login`);
+  };
 
   const primary = 'red';
   const secondary = 'black';
@@ -88,6 +114,9 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [menuActive]);
+
+  // ✅ Tentukan gambar avatar (default pakai logoTripsel)
+  const avatarSrc = userFoto && fotoMap[userFoto] ? fotoMap[userFoto] : logoTripsel;
 
   return (
     <AppBar
@@ -104,7 +133,7 @@ export default function Navbar() {
         flexDirection: 'row'
       }}
     >
-      {/* Logo - Responsive sizing */}
+      {/* Logo */}
       <Stack sx={{ width: { xs: '70px', sm: '80px', md: '100px' } }}>
         <img style={{ width: '100%', height: 'auto' }} src={logoTripsel} alt="logo" />
       </Stack>
@@ -149,16 +178,11 @@ export default function Navbar() {
               '&:hover': { color: primary, fontWeight: 700 },
               minWidth: 'auto',
               padding: '0px',
+              display: 'flex',
+              alignItems: 'center',
             }}
           >
-            <Icon icon="gg:profile" width={isSmallMobile ? '30' : '40'} height={isSmallMobile ? '30' : '40'} style={{ color: 'inherit' }} />
-            <Typography sx={{ 
-              fontSize: { sm: 18, md: 22 }, 
-              ml: 1,
-              display: { xs: 'none', sm: 'block' }
-            }}>
-              {userFullName.length > 12 ? `${userFullName.slice(0, 12)}..` : userFullName}
-            </Typography>
+            <Avatar src={avatarSrc} alt="User" sx={{ width: 80, height: 80, mr: 1 }} />
           </Button>
 
           <Menu
@@ -170,7 +194,7 @@ export default function Navbar() {
               style: {
                 background: bgClr,
                 boxShadow: '0px 4px 4px rgba(0,0,0,0.25)',
-                width: '270px',
+                width: '200px',
                 borderRadius: '0 0 30px 30px',
               },
             }}
@@ -203,6 +227,15 @@ export default function Navbar() {
               } 
             }}
           >
+            <Stack 
+              alignItems="center" 
+              spacing={1} 
+              sx={{ padding: '0px 0' }}
+            >
+              <Avatar src={avatarSrc} alt="User" sx={{ width: 70, height: 70 }} />
+            </Stack>
+            <Divider />
+
             <List sx={{ padding: '0' }}>
               <ListItem 
                 onClick={() => {
@@ -230,35 +263,31 @@ export default function Navbar() {
                 />
               </ListItem>
               <Divider />
-              {userFullName && (
-                <>
-                  <ListItem 
-                    onClick={() => {
-                      handleProfilemenu();
-                      handleDrawerToggle();
-                    }}
-                    sx={{ padding: '12px 24px' }}
-                  >
-                    <ListItemText 
-                      primary="Profile" 
-                      primaryTypographyProps={{ fontSize: isSmallMobile ? '16px' : '18px' }} 
-                    />
-                  </ListItem>
-                  <Divider />
-                  <ListItem 
-                    onClick={() => {
-                      handleLogout();
-                      handleDrawerToggle();
-                    }}
-                    sx={{ padding: '12px 24px' }}
-                  >
-                    <ListItemText 
-                      primary="Sign out" 
-                      primaryTypographyProps={{ fontSize: isSmallMobile ? '16px' : '18px' }} 
-                    />
-                  </ListItem>
-                </>
-              )}
+              <ListItem 
+                onClick={() => {
+                  handleProfilemenu();
+                  handleDrawerToggle();
+                }}
+                sx={{ padding: '12px 24px' }}
+              >
+                <ListItemText 
+                  primary="Profile" 
+                  primaryTypographyProps={{ fontSize: isSmallMobile ? '16px' : '18px' }} 
+                />
+              </ListItem>
+              <Divider />
+              <ListItem 
+                onClick={() => {
+                  handleLogout();
+                  handleDrawerToggle();
+                }}
+                sx={{ padding: '12px 24px' }}
+              >
+                <ListItemText 
+                  primary="Sign out" 
+                  primaryTypographyProps={{ fontSize: isSmallMobile ? '16px' : '18px' }} 
+                />
+              </ListItem>
             </List>
           </Drawer>
         </>

@@ -50,7 +50,7 @@ import {Paket} from './pages/Paket';
 // import {OlehKupang} from './pages/Oleh/OlehKupang';
 // import {OlehFlores} from './pages/Oleh/OlehFlores';
 import {Quizattempt} from './pages/Restoran';
-import {RestoranBali} from './pages/Restoran/list';
+import {Pdf} from './pages/Restoran/list';
 // import {RestoranMataram} from './pages/Restoran/RestoranMataram';
 // import {RestoranKupang} from './pages/Restoran/RestoranKupang';
 // import {RestoranFlores} from './pages/Restoran/RestoranFlores';
@@ -247,13 +247,13 @@ const router = createBrowserRouter([
   //   )
   // },
   {
-    path: '/restoran',
+    path: '/pdfviewer',
     element: (
       // <ProtectedRoute>
       <>
-        <Navbar />
-        <RestoranBali />
-        <Footer/>
+        {/* <Navbar /> */}
+        <Pdf />
+        {/* <Footer/> */}
       </>
       // </ProtectedRoute>
     )
@@ -348,7 +348,7 @@ const router = createBrowserRouter([
       element: (
         // <ProtectedRoute>
         <>
-          <Navbarwhite/>
+          <Navbar/>
           <Profile />
         </>
         // </ProtectedRoute>

@@ -8,8 +8,10 @@ import {
   Grid,
   Stack,
   Pagination,
+  Dialog,
+  DialogContent,
+  Button,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
 
 // ================== SHAPE ==================
 interface Shape {
@@ -19,7 +21,6 @@ interface Shape {
   type: 'circle' | 'square' | 'triangle';
 }
 
-// Global shape pool (semua card share shapes ini)
 const GlobalShapes: Shape[] = Array.from({ length: 10 }).map((_, i) => {
   const types: Shape['type'][] = ['circle', 'square', 'triangle'];
   return {
@@ -30,22 +31,37 @@ const GlobalShapes: Shape[] = Array.from({ length: 10 }).map((_, i) => {
   };
 });
 
-// ================== SHAPE CARD (Placeholder unik) ==================
+// ================== GLOBAL COLOR POOL ==================
+const colorPool = [
+  '#E74C3C',
+  '#3498DB',
+  '#2ECC71',
+  '#9B59B6',
+  '#F39C12',
+  '#1ABC9C',
+  '#34495E',
+];
+// Shuffle untuk randomisasi awal
+const shuffledColors = [...colorPool].sort(() => Math.random() - 0.5);
+let colorIndex = 0;
+
+// ambil warna unik
+const getUniqueColor = () => {
+  if (colorIndex >= shuffledColors.length) {
+    // kalau sudah habis, reset lagi (tidak akan ada duplikat sebelum cycle selesai)
+    colorIndex = 0;
+  }
+  return shuffledColors[colorIndex++];
+};
+
+// ================== SHAPE CARD ==================
 interface PackageCardProps {
   title: string;
-}
-interface UserPaket {
-  id: string;
-  name: string;
-  price: number;
-  created_at: string;
-  image?: string | null;
 }
 function PackageCard({ title }: PackageCardProps) {
   const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // detect screen size
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -53,22 +69,12 @@ function PackageCard({ title }: PackageCardProps) {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // warna background flat random
-  const colors = [
-    '#E74C3C',
-    '#3498DB',
-    '#2ECC71',
-    '#9B59B6',
-    '#F39C12',
-    '#1ABC9C',
-    '#34495E',
-  ];
-  const bgColor = colors[Math.floor(Math.random() * colors.length)];
+  // warna unik dari pool
+  const [bgColor] = useState(getUniqueColor);
 
   return (
     <Stack
       ref={containerRef}
-      className="relative flex items-center justify-center"
       style={{
         width: '100%',
         height: '140px',
@@ -77,7 +83,6 @@ function PackageCard({ title }: PackageCardProps) {
         position: 'relative',
       }}
     >
-      {/* shapes */}
       {GlobalShapes.map((s) => {
         const baseStyle: React.CSSProperties = {
           left: `${s.x}%`,
@@ -87,9 +92,8 @@ function PackageCard({ title }: PackageCardProps) {
           position: 'absolute',
         };
 
-        // bentuk shape
         let shapeEl;
-        const isFilled = Math.random() > 0.5; // random filled / outline
+        const isFilled = Math.random() > 0.5;
 
         if (s.type === 'circle') {
           shapeEl = (
@@ -159,7 +163,6 @@ function PackageCard({ title }: PackageCardProps) {
         );
       })}
 
-      {/* overlay untuk "memotong" shapes dengan teks */}
       <Stack
         height={'100%'}
         sx={{
@@ -168,7 +171,6 @@ function PackageCard({ title }: PackageCardProps) {
           fontSize: '24px',
           fontWeight: 700,
           mixBlendMode: 'exclusion',
-          fontFamily: '',
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -180,14 +182,24 @@ function PackageCard({ title }: PackageCardProps) {
 }
 
 // ================== GRID UTAMA ==================
+interface PaketItem {
+  id: string;
+  name: string;
+  price: string;
+  image?: string;
+  detail1?: string;
+  detail2?: string;
+  detail3?: string;
+  detail4?: string;
+  detail5?: string;
+}
+
 export default function PaketGrid() {
-  const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
-  const [items, setItems] = useState<
-    { id: string; name: string; price: string; image?: string }[]
-  >([]);
+  const [items, setItems] = useState<PaketItem[]>([]);
   const [userPakets, setUserPakets] = useState<string[]>([]);
+  const [selectedPaket, setSelectedPaket] = useState<PaketItem | null>(null);
 
   useEffect(() => {
     const fetchPakets = async () => {
@@ -200,28 +212,23 @@ export default function PaketGrid() {
       }
     };
 
-  // Di dalam fetchUserPakets
-const fetchUserPakets = async () => {
-  try {
-    const response = await fetch('http://localhost:3000/user-pakets', {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-    const data: UserPaket[] = await response.json();
-    setUserPakets(data.map((p) => p.id));
-  } catch (error) {
-    console.error('Error fetching user pakets:', error);
-  }
-};
+    const fetchUserPakets = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/user-pakets', {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        const data: { id: string }[] = await response.json();
+        setUserPakets(data.map((p) => p.id));
+      } catch (error) {
+        console.error('Error fetching user pakets:', error);
+      }
+    };
 
     fetchPakets();
     fetchUserPakets();
   }, []);
-
-  const handleItemClick = (id: string) => {
-    navigate(`/paketku?id=${encodeURIComponent(id)}`);
-  };
 
   const filteredItems = items.filter((item) => !userPakets.includes(item.id));
 
@@ -241,29 +248,10 @@ const fetchUserPakets = async () => {
   };
 
   return (
-    <Stack
-      justifyContent={'space-between'}
-      alignItems={'center'}
-      minHeight={'600px'}
-      sx={{ width: '100%', alignItems: 'flex-start' }}
-    >
-      <Grid
-        container
-        spacing={{ xs: 0, lg: 0, sm: 0 }}
-        justifyContent="flex-start"
-        sx={{ width: '100%' }}
-      >
+    <Stack sx={{ width: '100%', alignItems: 'flex-start' }}>
+      <Grid container spacing={2} sx={{ width: '100%' }}>
         {currentItems.map((item) => (
-          <Grid
-            item
-            key={item.id}
-            pb={{ xs: '24px' }}
-            pl={{ xs: '24px' }}
-            pr={{ xs: '24px' }}
-            xs={12}
-            sm={6}
-            md={4}
-          >
+          <Grid item key={item.id} xs={12} sm={6} md={4}>
             <Card
               sx={{
                 borderRadius: 3,
@@ -274,7 +262,7 @@ const fetchUserPakets = async () => {
                   boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
                 },
               }}
-              onClick={() => handleItemClick(item.id.toString())}
+              onClick={() => setSelectedPaket(item)}
             >
               {item.image ? (
                 <CardMedia
@@ -288,14 +276,13 @@ const fetchUserPakets = async () => {
               )}
 
               <CardContent>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
                   {item.name}
                 </Typography>
-
                 <Typography
                   variant="h6"
                   color="primary"
-                  sx={{ fontWeight: 700, marginTop: 1 }}
+                  sx={{ fontWeight: 700, mt: 1 }}
                 >
                   Rp. {formatPrice(item.price)}
                 </Typography>
@@ -312,25 +299,64 @@ const fetchUserPakets = async () => {
           onChange={handlePageChange}
           color="primary"
           size="large"
-          sx={{
-            width: '100%',
-            justifyContent: 'center',
-            display: 'flex',
-            alignItems: 'center',
-            '& .MuiPaginationItem-root': {
-              color: 'black',
-              fontSize: { xs: '14px', sm: '16px' },
-              '&.Mui-selected': {
-                backgroundColor: '#E74C3C',
-                color: 'white',
-                '&:hover': {
-                  backgroundColor: '#C0392B',
-                },
-              },
-            },
-          }}
+          sx={{ mt: 4, alignSelf: 'center' }}
         />
       )}
+
+      {/* Popup Detail */}
+      <Dialog
+        open={!!selectedPaket}
+        onClose={() => setSelectedPaket(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        {selectedPaket && (
+          <DialogContent sx={{ borderRadius: '60px' }}>
+            <Card elevation={0}>
+              {selectedPaket.image ? (
+                <CardMedia
+                  component="img"
+                  height="200"
+                  image={selectedPaket.image}
+                  alt={selectedPaket.name}
+                />
+              ) : (
+                <PackageCard title={selectedPaket.name} />
+              )}
+              <CardContent>
+                <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2 }}>
+                  {selectedPaket.name}
+                </Typography>
+                {[1, 2, 3, 4, 5].map((n) => {
+                  const key = `detail${n}` as keyof PaketItem;
+                  return (
+                    selectedPaket[key] && (
+                      <Typography key={n} variant="body1" sx={{ mb: 1 }}>
+                        • {selectedPaket[key]}
+                      </Typography>
+                    )
+                  );
+                })}
+                <Typography
+                  variant="h6"
+                  color="primary"
+                  sx={{ fontWeight: 'bold', mt: 2 }}
+                >
+                  Rp. {formatPrice(selectedPaket.price)}
+                </Typography>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  color="primary"
+                  sx={{ mt: 3 }}
+                >
+                  Beli
+                </Button>
+              </CardContent>
+            </Card>
+          </DialogContent>
+        )}
+      </Dialog>
     </Stack>
   );
 }
