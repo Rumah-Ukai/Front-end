@@ -1,5 +1,5 @@
 // src/components/beranda/QuizNavigation.tsx
-import React, { useState } from 'react';
+import  { useState } from 'react';
 import {
   Stack,
   Button,

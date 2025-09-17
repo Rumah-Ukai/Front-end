@@ -1,6 +1,6 @@
 import { Stack, Typography } from '@mui/material';
 import { useRef, useState, useEffect } from 'react';
-import Orangewithimage1 from '../beranda/soal';
+// import Orangewithimage1 from '../beranda/soal';
 import left from '../../assets/about/arrow_left_blue.png';
 import right from '../../assets/about/arrow_right_blue.png';
 import { useNavigate } from 'react-router-dom';
@@ -190,7 +190,7 @@ export default function Orangewithimage({ domisili }: OrangewithimageProps) {
    
         {orangeData.map((item, index) => (
           <Stack key={index} onClick={() => handleItemClick(item.nama)}> 
-            <Orangewithimage1 imageSrc={item.gambar_url1||item.gambar_url2||item.gambar_url3} textContent={item.nama} fontsize='30px' />
+            {/* <Orangewithimage1 imageSrc={item.gambar_url1||item.gambar_url2||item.gambar_url3} textContent={item.nama} fontsize='30px' /> */}
           </Stack>
         ))}
       </Stack>

@@ -1,6 +1,6 @@
 import { Stack } from '@mui/material';
 import { useRef, useState } from 'react';
-import Orangewithimage1 from './soal';
+// import Orangewithimage1 from './soal';
 import left from '../../assets/arrowleft.svg';
 import right from '../../assets/arrowright.svg';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate hook
@@ -129,7 +129,7 @@ export default function Orangewithimage({ orangeData }: OrangewithimageProps) {
       >
         {orangeData.map((item, index) => (
           <Stack key={index} onClick={() => handleItemClick(item.textContent)}>
-            <Orangewithimage1 imageSrc={item.imageSrc} textContent={item.textContent} />
+            {/* <Orangewithimage1 imageSrc={item.imageSrc} textContent={item.textContent} /> */}
           </Stack>
         ))}
       </Stack>
