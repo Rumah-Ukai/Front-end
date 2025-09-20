@@ -108,7 +108,7 @@ export default function Paket() {
 
   // ✅ Ganti ke navigate ke PdfView, bukan open langsung URL
   const handleOpenPdf = (tryoutId: string) => {
-    navigate(`/pdfviewer?id=${tryoutId}`);
+      window.open(`/pdfviewer?id=${tryoutId}`, '_blank');
   };
 
   const getGradeColor = (grade: number): string => {

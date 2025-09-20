@@ -107,9 +107,9 @@ const router = createBrowserRouter([
     element: (
       // <ProtectedRoute>
       <>
-        <Navbar />
+        {/* <Navbar /> */}
         <Quiz />
-        <Footer/>
+        {/* <Footer/> */}
       </>
       // </ProtectedRoute>
     )
@@ -119,9 +119,9 @@ const router = createBrowserRouter([
     element: (
       // <ProtectedRoute>
       <>
-        <Navbar />
+        {/* <Navbar /> */}
         <Quizreview />
-        <Footer/>
+        {/* <Footer/> */}
       </>
       // </ProtectedRoute>
     )

@@ -1,5 +1,5 @@
 // src/components/beranda/QuizNavigation.tsx
-import  { useState } from 'react';
+import { useState } from 'react';
 import {
   Stack,
   Button,
@@ -46,7 +46,7 @@ export default function QuizNavigation({
     onFontSizeChange(size);
   };
 
-  // pewarnaan nomor soal
+  // pewarnaan nomor soal (tetap gunakan array correct/incorrect dari props)
   const getButtonColorsForNum = (numOrder: number) => {
     if (correctQuestions.includes(numOrder)) {
       return { bg: '#2e7d32', hover: '#1b5e20', text: '#fff' }; // green
@@ -59,7 +59,7 @@ export default function QuizNavigation({
 
   return (
     <Card sx={{ boxShadow: 3, borderRadius: 2, width: '100%' }}>
-      {/* Header */}
+      {/* Header (disesuaikan mirip soal nav asli) */}
       <Box
         sx={{
           display: 'flex',
@@ -77,6 +77,7 @@ export default function QuizNavigation({
             color: 'common.white',
             fontWeight: 700,
             letterSpacing: 0.3,
+            fontSize: '17px',
           }}
         >
           {grade !== null ? `Score: ${grade}` : 'Score: -'}
@@ -104,7 +105,7 @@ export default function QuizNavigation({
       {/* Collapsible content */}
       <Collapse in={expanded} timeout="auto" unmountOnExit>
         <CardContent sx={{ pt: 1, pb: 1 }}>
-          {/* Tombol kontrol */}
+          {/* Tombol kontrol (label dan ukuran disesuaikan agar mirip) */}
           <Stack
             direction="row"
             spacing={1}
@@ -113,14 +114,14 @@ export default function QuizNavigation({
             justifyContent={'space-between'}
             display={'flex'}
           >
-            <Tooltip title={showAll ? 'Lihat satu soal' : 'Lihat semua soal'} arrow>
+            <Tooltip title={showAll ? 'Fokus ke satu soal' : 'Perlihatkan semua soal'} arrow>
               <Button
                 size="small"
                 variant="outlined"
                 onClick={onToggleShowAll}
                 sx={{ flexGrow: 1, minWidth: 'auto' }}
               >
-                {showAll ? '1+' : '1'}
+                {showAll ? 'Semua soal' : 'Lihat 1 soal'}
               </Button>
             </Tooltip>
 
@@ -129,7 +130,7 @@ export default function QuizNavigation({
                 size="small"
                 variant={fontSize === 'small' ? 'contained' : 'outlined'}
                 onClick={() => handleFontSize('small')}
-                sx={{ flexGrow: 1, minWidth: 'auto' }}
+                sx={{ flexGrow: 1, minWidth: 'auto', fontSize: '14px' }}
               >
                 A-
               </Button>
@@ -140,7 +141,7 @@ export default function QuizNavigation({
                 size="small"
                 variant={fontSize === 'normal' ? 'contained' : 'outlined'}
                 onClick={() => handleFontSize('normal')}
-                sx={{ flexGrow: 1, minWidth: 'auto' }}
+                sx={{ flexGrow: 1, minWidth: 'auto', fontSize: '16px' }}
               >
                 A
               </Button>
@@ -151,14 +152,14 @@ export default function QuizNavigation({
                 size="small"
                 variant={fontSize === 'large' ? 'contained' : 'outlined'}
                 onClick={() => handleFontSize('large')}
-                sx={{ flexGrow: 1, minWidth: 'auto' }}
+                sx={{ flexGrow: 1, minWidth: 'auto', fontSize: '18px' }}
               >
                 A+
               </Button>
             </Tooltip>
           </Stack>
 
-          {/* Grid nomor soal */}
+          {/* Grid nomor soal (layout & scrollbar disesuaikan mirip asli) */}
           <Box
             display="grid"
             gridTemplateColumns={{
@@ -169,7 +170,7 @@ export default function QuizNavigation({
             }}
             gap={1}
             sx={{
-              maxHeight: 260,
+              maxHeight: { xs: 260, sm: 'calc(100vh - 250px)' },
               overflowY: 'auto',
               pr: 1,
               '&::-webkit-scrollbar': { width: '8px' },
@@ -199,17 +200,14 @@ export default function QuizNavigation({
                     minWidth: 36,
                     height: 36,
                     borderRadius: 1,
-                    backgroundColor: isSelected
-                      ? '#0d47a1'
-                      : colors.bg,
+                    backgroundColor: isSelected ? '#1976d2' : colors.bg,
                     border: '1px solid #999',
-                    color: '#fff',
+                    color: colors.text,
                     fontSize: 13,
                     fontWeight: 500,
+                    position: 'relative',
                     '&:hover': {
-                      backgroundColor: isSelected
-                        ? '#08306b'
-                        : colors.hover,
+                      backgroundColor: isSelected ? '#115293' : colors.hover,
                     },
                   }}
                 >

@@ -1,4 +1,4 @@
-import  { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Stack,
   Button,
@@ -9,20 +9,22 @@ import {
   IconButton,
   Typography,
   Tooltip,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 interface QuizNavigationProps {
   totalQuestions: number;
-  selectedQuestion: number; // nomor urut 1..N (bukan id database)
-  onSelectQuestion: (numOrder: number) => void; // terima nomor urut 1..N
-  answeredQuestions: number[]; // daftar nomor urut yang sudah dijawab
-  flaggedQuestions: number[]; // daftar nomor urut yang di-flag
-  onToggleFlag: (numOrder: number) => void; // toggle flag by nomor urut
+  selectedQuestion: number;
+  onSelectQuestion: (numOrder: number) => void;
+  answeredQuestions: number[];
+  flaggedQuestions: number[];
+  onToggleFlag: (numOrder: number) => void;
   showAll: boolean;
   onToggleShowAll: () => void;
   durationMinutes: number;
-  startTime: string; // ✅ ambil dari backend attempt.start_time
+  startTime: string;
   onTimeUp: () => void;
   onFontSizeChange: (size: 'small' | 'normal' | 'large') => void;
 }
@@ -44,7 +46,18 @@ export default function QuizNavigation({
   const [timeLeft, setTimeLeft] = useState<number>(durationMinutes * 60);
   const [fontSize, setFontSize] = useState<'small' | 'normal' | 'large'>('normal');
 
-  // countdown berdasarkan startTime
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // ✅ custom hook untuk windowHeight
+  const [windowHeight, setWindowHeight] = useState<number>(window.innerHeight);
+  useEffect(() => {
+    const onResize = () => setWindowHeight(window.innerHeight);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // countdown
   useEffect(() => {
     const start = new Date(startTime).getTime();
     const totalSeconds = durationMinutes * 60;
@@ -77,6 +90,9 @@ export default function QuizNavigation({
     onFontSizeChange(size);
   };
 
+  // ✅ tinggi maksimal grid
+  const gridMaxHeight = isMobile ? 260 : windowHeight - 250;
+
   return (
     <Card sx={{ boxShadow: 3, borderRadius: 2, width: '100%' }}>
       {/* Header */}
@@ -95,11 +111,12 @@ export default function QuizNavigation({
           variant="subtitle2"
           sx={{
             color: timeLeft < 60 ? 'error.main' : 'common.white',
-            fontWeight: 600,
+            fontWeight: 700,
             letterSpacing: 0.3,
+            fontSize: '17px',
           }}
         >
-          ⏳ {formatTime(timeLeft)}
+          ⏳ Waktu tersisa : {formatTime(timeLeft)}
         </Typography>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -115,7 +132,7 @@ export default function QuizNavigation({
                 '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
               }}
             >
-              <ExtendIconAdapter />
+              <ExpandMoreIcon sx={{ fontSize: 20 }} />
             </IconButton>
           </Tooltip>
         </Box>
@@ -124,7 +141,7 @@ export default function QuizNavigation({
       {/* Collapsible content */}
       <Collapse in={expanded} timeout="auto" unmountOnExit>
         <CardContent sx={{ pt: 1, pb: 1 }}>
-          {/* Tombol Tunjukan Semua + tombol font control */}
+          {/* Controls */}
           <Stack
             direction="row"
             spacing={1}
@@ -133,14 +150,14 @@ export default function QuizNavigation({
             justifyContent={'space-between'}
             display={'flex'}
           >
-            <Tooltip title={showAll ? 'Lihat satu soal' : 'Lihat semua soal'} arrow>
+            <Tooltip title={showAll ? 'Fokus ke satu soal' : 'Perlihatkan semua soal'} arrow>
               <Button
                 size="small"
                 variant="outlined"
                 onClick={onToggleShowAll}
                 sx={{ flexGrow: 1, minWidth: 'auto' }}
               >
-                {showAll ? '1+' : '1'}
+                {showAll ? 'Semua soal' : 'Lihat 1 soal'}
               </Button>
             </Tooltip>
 
@@ -149,7 +166,7 @@ export default function QuizNavigation({
                 size="small"
                 variant={fontSize === 'small' ? 'contained' : 'outlined'}
                 onClick={() => handleFontSize('small')}
-                sx={{ flexGrow: 1, minWidth: 'auto' }}
+                sx={{ flexGrow: 1, minWidth: 'auto', fontSize:'14px'  }}
               >
                 A-
               </Button>
@@ -160,7 +177,7 @@ export default function QuizNavigation({
                 size="small"
                 variant={fontSize === 'normal' ? 'contained' : 'outlined'}
                 onClick={() => handleFontSize('normal')}
-                sx={{ flexGrow: 1, minWidth: 'auto' }}
+                sx={{ flexGrow: 1, minWidth: 'auto', fontSize:'16px' }}
               >
                 A
               </Button>
@@ -171,7 +188,7 @@ export default function QuizNavigation({
                 size="small"
                 variant={fontSize === 'large' ? 'contained' : 'outlined'}
                 onClick={() => handleFontSize('large')}
-                sx={{ flexGrow: 1, minWidth: 'auto' }}
+                sx={{ flexGrow: 1, minWidth: 'auto', fontSize:'18px'  }}
               >
                 A+
               </Button>
@@ -189,7 +206,7 @@ export default function QuizNavigation({
             }}
             gap={1}
             sx={{
-              maxHeight: 260,
+              maxHeight: gridMaxHeight,
               overflowY: 'auto',
               pr: 1,
               '&::-webkit-scrollbar': { width: '8px' },
@@ -261,8 +278,4 @@ export default function QuizNavigation({
       </Collapse>
     </Card>
   );
-}
-
-function ExtendIconAdapter() {
-  return <ExpandMoreIcon sx={{ fontSize: 20 }} />;
 }

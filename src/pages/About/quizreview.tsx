@@ -7,6 +7,9 @@ import {
   useTheme,
   useMediaQuery,
   Typography,
+  Card,
+  CardContent,
+  Divider,
 } from '@mui/material';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -244,6 +247,49 @@ export default function QuizReview(): JSX.Element {
       .filter((x): x is number => x !== null);
   }, [questions, answers]);
 
+  // === Statistik pengguna ===
+  const stats = useMemo(() => {
+    const total = questions.length;
+    const answeredCount = Object.keys(answers).filter(k => answers[Number(k)]).length;
+    const correctCount = questions.reduce((acc, q) => acc + (answers[q.id] && q.answerKey && answers[q.id] === q.answerKey ? 1 : 0), 0);
+    const incorrectCount = Math.max(0, answeredCount - correctCount);
+    const unansweredCount = Math.max(0, total - answeredCount);
+
+    // waktu: gunakan submitted_at - start_time jika available, kalau tidak pakai duration_minutes fallback atau kalkulasi sampai sekarang
+    let totalSeconds = 0;
+    if (currentAttempt) {
+      if (currentAttempt.submitted_at && currentAttempt.start_time) {
+        totalSeconds = Math.max(0, (new Date(currentAttempt.submitted_at).getTime() - new Date(currentAttempt.start_time).getTime()) / 1000);
+      } else if (currentAttempt.start_time) {
+        // belum submitted (unlikely di review), hitung sampai sekarang
+        totalSeconds = Math.max(0, (Date.now() - new Date(currentAttempt.start_time).getTime()) / 1000);
+      } else if (currentAttempt.duration_minutes) {
+        totalSeconds = currentAttempt.duration_minutes * 60;
+      }
+    }
+
+    const avgSecPerQuestionAll = total > 0 ? totalSeconds / total : 0;
+    const avgSecPerAnswered = answeredCount > 0 ? totalSeconds / answeredCount : 0;
+
+    return {
+      total,
+      answeredCount,
+      correctCount,
+      incorrectCount,
+      unansweredCount,
+      totalSeconds,
+      avgSecPerQuestionAll,
+      avgSecPerAnswered,
+    };
+  }, [questions, answers, currentAttempt]);
+
+  const formatSec = (sec: number) => {
+    if (!isFinite(sec) || sec <= 0) return '00:00';
+    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const s = Math.floor(sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
   const goToPreviousQuestion = (): void => {
     if (selectedQuestionId === null) return;
     const idx = questions.findIndex(q => q.id === selectedQuestionId);
@@ -306,6 +352,87 @@ export default function QuizReview(): JSX.Element {
     }
   };
 
+  // Stats box component (lokasi render ditentukan di JSX)
+const StatsBox = () => (
+  <Card sx={{ mb: 2, borderRadius: 2, boxShadow: 2 }}>
+    <CardContent>
+      <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
+        Statistik Penyelesaian
+      </Typography>
+
+      {/* Bagian atas: jumlah soal */}
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{
+          flexWrap: 'wrap',
+          justifyContent: { xs: 'center', sm: 'space-between' },
+          rowGap: 2,
+        }}
+      >
+        <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
+          <Typography variant="caption">Total Soal</Typography>
+          <Typography variant="h6">{stats.total}</Typography>
+        </Box>
+
+        <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
+          <Typography variant="caption">Terjawab</Typography>
+          <Typography variant="h6">{stats.answeredCount}</Typography>
+        </Box>
+
+        <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
+          <Typography variant="caption">Benar</Typography>
+          <Typography variant="h6" color="success.main">
+            {stats.correctCount}
+          </Typography>
+        </Box>
+
+        <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
+          <Typography variant="caption">Salah</Typography>
+          <Typography variant="h6" color="error.main">
+            {stats.incorrectCount}
+          </Typography>
+        </Box>
+
+        <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
+          <Typography variant="caption">Belum Terjawab</Typography>
+          <Typography variant="h6">{stats.unansweredCount}</Typography>
+        </Box>
+      </Stack>
+
+      <Divider sx={{ my: 2 }} />
+
+      {/* Bagian bawah: waktu */}
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{
+          flexWrap: 'wrap',
+          justifyContent: { xs: 'center', sm: 'space-between' },
+          rowGap: 2,
+        }}
+      >
+        <Box textAlign="center" flex={1} minWidth={{ xs: '90%', sm: '160px' }}>
+          <Typography variant="caption">Total Waktu</Typography>
+          <Typography variant="body1">{formatSec(stats.totalSeconds)}</Typography>
+        </Box>
+
+        <Box textAlign="center" flex={1} minWidth={{ xs: '90%', sm: '160px' }}>
+          <Typography variant="caption">Rata-rata / soal (semua)</Typography>
+          <Typography variant="body1">{formatSec(stats.avgSecPerQuestionAll)}</Typography>
+        </Box>
+
+        <Box textAlign="center" flex={1} minWidth={{ xs: '90%', sm: '160px' }}>
+          <Typography variant="caption">Rata-rata / soal (yang dijawab)</Typography>
+          <Typography variant="body1">{formatSec(stats.avgSecPerAnswered)}</Typography>
+        </Box>
+      </Stack>
+    </CardContent>
+  </Card>
+);
+
+
+
   if (loading) {
     return <Stack justifyContent="center" alignItems="center" sx={{ height: '60vh' }}>
       <Typography>Loading review...</Typography>
@@ -331,7 +458,7 @@ export default function QuizReview(): JSX.Element {
     >
       {/* NAV untuk mobile */}
       {isMobile && (
-        <Box sx={{ mb: 2, position: 'sticky', top: 70, zIndex: 10 }}>
+        <Box sx={{ mb: 2, position: 'sticky', top: 20, zIndex: 10 }}>
           <QuizNavigation
             totalQuestions={questions.length}
             selectedQuestion={
@@ -360,6 +487,9 @@ export default function QuizReview(): JSX.Element {
         <Stack spacing={4} sx={{ width: '100%', flexGrow: 1 }}>
           {showAll ? (
             <>
+              {/* Jika showAll: tampilkan statistik di paling atas (sebelum semua soal) */}
+              <StatsBox />
+
               <QuestionForm
                 questions={questions as QCompQuestion[]}
                 answers={answers}
@@ -371,33 +501,38 @@ export default function QuizReview(): JSX.Element {
               </Button>
             </>
           ) : (
-            <QuestionForm
-              questions={questions as QCompQuestion[]}
-              selectedQuestionId={selectedQuestionId ?? undefined}
-              answers={answers}
-              fontSize={fontSize}
-            />
+            <>
+              {/* Jika show one: tampilkan statistik hanya ketika user berada di soal nomor 1 */}
+              {questions.length > 0 && selectedQuestionId === questions[0].id && <StatsBox />}
+
+              <QuestionForm
+                questions={questions as QCompQuestion[]}
+                selectedQuestionId={selectedQuestionId ?? undefined}
+                answers={answers}
+                fontSize={fontSize}
+              />
+            </>
           )}
           {!showAll && (
-            <Stack direction="row" spacing={2} justifyContent="center">
-              <Button variant="outlined" onClick={goToPreviousQuestion} disabled={questions.findIndex(q => q.id === selectedQuestionId) <= 0}>
-                Kiri
+            <Stack direction="row" spacing={2} justifyContent="space-between">
+              <Button sx={{fontSize:'10px'}} variant="outlined" onClick={goToPreviousQuestion} disabled={questions.findIndex(q => q.id === selectedQuestionId) <= 0}>
+                Sebelumnya
               </Button>
-              <Button variant="contained" size="large" onClick={handleExit}>
-                Exit
+              <Button sx={{fontSize:'10px'}} variant="contained" size="large" onClick={handleExit}>
+                Keluar
               </Button>
-              <Button variant="outlined" onClick={goToNextQuestion} disabled={(() => {
+              <Button sx={{fontSize:'10px'}} variant="outlined" onClick={goToNextQuestion} disabled={(() => {
                 const idx = questions.findIndex(q => q.id === selectedQuestionId);
                 return idx === -1 || idx === questions.length - 1;
               })()}>
-                Kanan
+                Selanjutnya
               </Button>
             </Stack>
           )}
         </Stack>
       </Box>
       {!isMobile && (
-        <Box sx={{ width: { xs: '100%', sm: 320, md: 400, lg: 480, xl: 520 }, position: 'fixed', right: 20, top: { sm: '120px', md: '145px' } }}>
+        <Box sx={{ width: { xs: '100%', sm: 320, md: 400, lg: 480, xl: 520 }, position: 'fixed', right: 20, top: { sm: '32px', md: '32px' } }}>
           <QuizNavigation
             totalQuestions={questions.length}
             selectedQuestion={showAll

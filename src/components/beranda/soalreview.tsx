@@ -1,5 +1,5 @@
 // src/components/beranda/soalreview.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   Card,
   Stack,
@@ -9,7 +9,6 @@ import {
   Radio,
   CardHeader,
   CardContent,
-  Collapse,
   Box,
   Table,
   TableHead,
@@ -20,7 +19,6 @@ import {
 import CheckIcon from '@mui/icons-material/Check';
 import ClearIcon from '@mui/icons-material/Clear';
 import { InlineMath } from 'react-katex';
-// import ReactMarkdown from 'react-markdown';
 
 interface Option {
   id: string;
@@ -78,7 +76,9 @@ const parseTable = (
 ) => {
   if (!table || !table.headers || !table.rows) return undefined;
 
-  const headersArray = Array.isArray(table.headers) ? table.headers : table.headers.split('|');
+  const headersArray = Array.isArray(table.headers)
+    ? table.headers
+    : table.headers.split('|');
 
   const rowsArray = Array.isArray(table.rows)
     ? table.rows
@@ -114,25 +114,20 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
   const visibleQuestions = selectedQuestionId
     ? questions.filter((q) => q.id === selectedQuestionId)
     : questions;
-  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
-    if (selectedQuestionId) {
-      setExpanded((prev) => ({ ...prev, [selectedQuestionId]: true }));
-    } else {
-      setExpanded(Object.fromEntries(questions.map((q) => [q.id, true])));
-    }
+    // Tidak perlu collapse lagi, semua soal akan langsung terbuka
   }, [selectedQuestionId, questions]);
 
   return (
-    <Stack spacing={1} sx={{ width: '100%', height: '100%' }}>
-      {visibleQuestions.map((q, idx) => {
-        const soalNumber = idx + 1;
+    <Stack spacing={1} sx={{ width: '100%', height: 'auto' }}>
+      {visibleQuestions.map((q) => {
+        // nomor soal dihitung dari urutan global di array questions
+        const soalNumber = questions.findIndex(x => x.id === q.id) + 1;
         const userAnswer = answers[q.id] || '';
         const isCorrect = q.answerKey && userAnswer === q.answerKey;
         const currentFontSize = getFontSize(fontSize);
         const parsedTable = parseTable(q.table);
-        // const parsedExplanationTable = parseTable(q.explanationTable);
 
         return (
           <div
@@ -158,197 +153,96 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
                   </Typography>
                 }
               />
+              <CardContent>
+                <Typography variant="body1" sx={{ mb: 2, fontSize: currentFontSize }}>
+                  {parseTextWithMath(q.text)}
+                </Typography>
 
-              <Collapse in={expanded[q.id]} timeout="auto" unmountOnExit>
-                <CardContent>
-                  <Typography variant="body1" sx={{ mb: 2, fontSize: currentFontSize }}>
-                    {parseTextWithMath(q.text)}
-                  </Typography>
+                {q.image && (
+                  <Box
+                    sx={{
+                      width: {
+                        xs: '100%',
+                        sm: '100%',
+                        md: '400px',
+                        lg: '450px',
+                        xl: '500px',
+                      },
+                      mb: 2,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <img
+                      src={q.image}
+                      alt={`Soal ${soalNumber}`}
+                      style={{ maxWidth: '100%', borderRadius: 8 }}
+                    />
+                  </Box>
+                )}
 
-                  {q.image && (
-                    <Box
-                      sx={{
-                        width: { xs: '100%', sm: '100%', md: '400px', lg: '450px', xl: '500px' },
-                        mb: 2,
-                        textAlign: 'center',
-                      }}
-                    >
-                      <img
-                        src={q.image}
-                        alt={`Soal ${soalNumber}`}
-                        style={{ maxWidth: '100%', borderRadius: 8 }}
-                      />
-                    </Box>
-                  )}
-
-                  {parsedTable && (
-                    <Box sx={{ mb: 2, overflowX: 'auto' }}>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            {parsedTable.headers.map((header, idx2) => (
-                              <TableCell key={idx2} sx={{ fontWeight: 'bold' }}>
-                                {header}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {parsedTable.rows.map((row, rIdx) => (
-                            <TableRow key={rIdx}>
-                              {row.map((cell, cIdx) =>
-                                typeof cell === 'string' ? (
-                                  <TableCell key={cIdx}>{cell}</TableCell>
-                                ) : (
-                                  <TableCell
-                                    key={cIdx}
-                                    colSpan={cell.colspan || 1}
-                                    sx={{ textAlign: 'center' }}
-                                  >
-                                    {cell.value}
-                                  </TableCell>
-                                )
-                              )}
-                            </TableRow>
+                {parsedTable && (
+                  <Box sx={{ mb: 2, overflowX: 'auto' }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          {parsedTable.headers.map((header, idx2) => (
+                            <TableCell key={idx2} sx={{ fontWeight: 'bold' }}>
+                              {header}
+                            </TableCell>
                           ))}
-                        </TableBody>
-                      </Table>
-                    </Box>
-                  )}
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {parsedTable.rows.map((row, rIdx) => (
+                          <TableRow key={rIdx}>
+                            {row.map((cell, cIdx) =>
+                              typeof cell === 'string' ? (
+                                <TableCell key={cIdx}>{cell}</TableCell>
+                              ) : (
+                                <TableCell
+                                  key={cIdx}
+                                  colSpan={cell.colspan || 1}
+                                  sx={{ textAlign: 'center' }}
+                                >
+                                  {cell.value}
+                                </TableCell>
+                              )
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Box>
+                )}
 
-                  {/* Pilihan jawaban */}
-                  <RadioGroup value={userAnswer}>
-                    {q.options.map((opt) => (
-                      <FormControlLabel
-                        key={opt.id}
-                        value={opt.id}
-                        disabled={isReview}
-                        control={<Radio disabled={isReview} />}
-                        label={
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography sx={{ fontSize: currentFontSize }}>
-                              {parseTextWithMath(opt.text)}
-                            </Typography>
-                            {q.answerKey === opt.id && <CheckIcon color="success" sx={{ ml: 1 }} />}
-                            {userAnswer && userAnswer !== q.answerKey && userAnswer === opt.id && (
+                {/* Pilihan jawaban */}
+                <RadioGroup value={userAnswer}>
+                  {q.options.map((opt) => (
+                    <FormControlLabel
+                      key={opt.id}
+                      value={opt.id}
+                      disabled={isReview}
+                      control={<Radio disabled={isReview} />}
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography sx={{ fontSize: currentFontSize }}>
+                            {parseTextWithMath(opt.text)}
+                          </Typography>
+                          {q.answerKey === opt.id && (
+                            <CheckIcon color="success" sx={{ ml: 1 }} />
+                          )}
+                          {userAnswer &&
+                            userAnswer !== q.answerKey &&
+                            userAnswer === opt.id && (
                               <ClearIcon color="error" sx={{ ml: 1 }} />
                             )}
-                          </Box>
-                        }
-                        sx={isReview ? { cursor: 'default', pointerEvents: 'none' } : {}}
-                      />
-                    ))}
-                  </RadioGroup>
-
-                  {/* Pembahasan */}
-                  {/* {q.explanation && (
-                    <Box
-                      sx={{
-                        mt: 2,
-                        color: 'text.secondary',
-                        '& ul': { pl: 3, listStyleType: 'disc' },
-                        '& ul ul': { listStyleType: 'circle' },
-                        '& ul ul ul': { listStyleType: 'square' },
-                      }}
-                      fontStyle={'inherit'}
-                    >
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ fontSize: currentFontSize, mb: 1 }}
-                      >
-                        <strong>Pembahasan:</strong>
-                      </Typography>
-
-                      <ReactMarkdown
-                        components={{
-                          p: ({ children }) => (
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              sx={{ fontSize: currentFontSize, mb: 1 }}
-                            >
-                              {children
-                                ? React.Children.map(children, (c, idx) => {
-                                    if (typeof c === 'string') return parseTextWithMath(c, idx);
-                                    return c;
-                                  })
-                                : null}
-                            </Typography>
-                          ),
-                        li: ({ children }) => (
-                          <Typography
-                            component="li"
-                            variant="body2"
-                            sx={{ fontSize: currentFontSize, fontFamily: 'inherit', mb: 0.5 }}
-                          >
-                            {children
-                              ? React.Children.map(children, (c, idx) => {
-                                  if (typeof c === 'string') return parseTextWithMath(c, idx);
-                                  return c;
-                                })
-                              : null}
-                          </Typography>
-                        ),
-                        }}
-                      >
-                        {q.explanation}
-                      </ReactMarkdown>
-                    </Box>
-                  )}
-
-                  {q.explanationImage && (
-                    <Box
-                      sx={{
-                        width: { xs: '100%', sm: '100%', md: '400px', lg: '450px', xl: '500px' },
-                        mt: 2,
-                        textAlign: 'center',
-                      }}
-                    >
-                      <img
-                        src={q.explanationImage}
-                        alt={`Pembahasan Soal ${soalNumber}`}
-                        style={{ maxWidth: '100%', borderRadius: 8 }}
-                      />
-                    </Box>
-                  )}
-
-                  {parsedExplanationTable && (
-                    <Box sx={{ mt: 2, overflowX: 'auto' }}>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            {parsedExplanationTable.headers.map((header, idx2) => (
-                              <TableCell key={idx2} sx={{ fontWeight: 'bold' }}>
-                                {header}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {parsedExplanationTable.rows.map((row, rIdx) => (
-                            <TableRow key={rIdx}>
-                              {row.map((cell, cIdx) =>
-                                typeof cell === 'string' ? (
-                                  <TableCell key={cIdx}>{cell}</TableCell>
-                                ) : (
-                                  <TableCell
-                                    key={cIdx}
-                                    colSpan={cell.colspan || 1}
-                                    sx={{ textAlign: 'center' }}
-                                  >
-                                    {cell.value}
-                                  </TableCell>
-                                )
-                              )}
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </Box>
-                  )} */}
-                </CardContent>
-              </Collapse>
+                        </Box>
+                      }
+                      sx={isReview ? { cursor: 'default', pointerEvents: 'none' } : {}}
+                    />
+                  ))}
+                </RadioGroup>
+              </CardContent>
             </Card>
           </div>
         );

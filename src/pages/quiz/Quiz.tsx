@@ -7,11 +7,19 @@ import {
   useTheme,
   useMediaQuery,
   Typography,
+  LinearProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import QuestionForm, { Question as QCompQuestion } from '../../components/beranda/soal';
 import QuizNavigation from '../../components/beranda/soalnav';
+
+// di dalam komponen Quiz
 
 export default function Quiz(): JSX.Element {
   const theme = useTheme();
@@ -22,8 +30,8 @@ export default function Quiz(): JSX.Element {
 
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
-  // state mungkin dikirim dari Tryout atau via query string
   const state = (location.state || {}) as { tryoutId?: string; attempt?: number };
   const tryoutIdFromState = state.tryoutId ?? null;
   const attemptFromState = state.attempt ?? null;
@@ -33,11 +41,9 @@ export default function Quiz(): JSX.Element {
 
   const tryoutId = tryoutIdFromState ?? tryoutIdQuery;
 
-  // attemptNumber sekarang dikelola sebagai state agar kita bisa start attempt jika tidak ada
   const initialAttempt = attemptFromState ?? (attemptQuery ? Number(attemptQuery) : null);
   const [attemptNumberState, setAttemptNumberState] = useState<number | null>(initialAttempt);
 
-  // -------------------- types --------------------
   interface Question {
     id: number;
     text: string;
@@ -73,29 +79,31 @@ export default function Quiz(): JSX.Element {
     attempt_number: number;
     grade: string | null;
     status: string;
-    question_order: string; // e.g. "5,2,1,3"
-    answer_order: string; // e.g. "-,a,-,b" (may include 'f' markers)
-
+    question_order: string;
+    answer_order: string;
     submitted_at: string | null;
     start_time: string | null;
     duration_minutes: number;
   }
 
-  // -------------------- state --------------------
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentAttempt, setCurrentAttempt] = useState<QuizAttemptFromServer | null>(null);
-  const [answers, setAnswers] = useState<Record<number, string>>({}); // pure answers only (no 'f')
+  const [answers, setAnswers] = useState<Record<number, string>>({});
   const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(null);
-  const [flaggedQuestions, setFlaggedQuestions] = useState<number[]>([]); // question IDs
+  const [flaggedQuestions, setFlaggedQuestions] = useState<number[]>([]);
   const [showAll, setShowAll] = useState<boolean>(false);
   const [fontSize, setFontSize] = useState<'small' | 'normal' | 'large'>('normal');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // states untuk konfirmasi submit
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [unansweredCount, setUnansweredCount] = useState<number>(0);
+  const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
+
   const questionRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const [activeInViewId, setActiveInViewId] = useState<number | null>(null);
 
-  // -------------------- helpers --------------------
   const parseHeaders = (headers?: string[] | string | null): string[] | undefined => {
     if (!headers) return undefined;
     if (Array.isArray(headers)) return headers;
@@ -111,7 +119,6 @@ export default function Quiz(): JSX.Element {
       .filter(r => r.length > 0);
   };
 
-  // parse attempt.answer_order -> { answersMap (cleaned), flaggedIds }
   const parseAttemptAnswersAndFlags = (attempt: QuizAttemptFromServer | null) => {
     if (!attempt) return { answersMap: {} as Record<number, string>, flaggedIds: [] as number[] };
 
@@ -122,7 +129,6 @@ export default function Quiz(): JSX.Element {
       .map(s => Number(s));
 
     const ansArr = (attempt.answer_order || '').split(',');
-    // ensure same length
     while (ansArr.length < qOrder.length) ansArr.push('-');
 
     const answersMap: Record<number, string> = {};
@@ -131,11 +137,7 @@ export default function Quiz(): JSX.Element {
     qOrder.forEach((qid, idx) => {
       const token = (ansArr[idx] ?? '').trim();
       if (token.includes('f')) flaggedIds.push(qid);
-
-      // cleaned answer: remove 'f' markers
       const cleaned = token.replace(/f/g, '').trim();
-
-      // only treat as answered if cleaned contains an option letter (a-e)
       if (/^[a-eA-E]$/.test(cleaned)) {
         answersMap[qid] = cleaned.toLowerCase();
       }
@@ -144,28 +146,22 @@ export default function Quiz(): JSX.Element {
     return { answersMap, flaggedIds };
   };
 
-  // -------------------- load questions + attempt --------------------
   useEffect(() => {
     let mounted = true;
-
     const load = async (): Promise<void> => {
       setLoading(true);
       setError(null);
-
       try {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('Token tidak ditemukan. Silakan login.');
-
         if (!tryoutId) throw new Error('tryoutId tidak diberikan (query string atau state).');
 
-        // 1) fetch questions filtered by tryoutId (this endpoint reads tryout_questions internally)
         const qRes = await axios.get<ServerQuestion[]>(
           `http://localhost:3000/questions?tryoutId=${encodeURIComponent(tryoutId)}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
         if (!mounted) return;
-
         const serverQuestions = Array.isArray(qRes.data) ? qRes.data : [];
         const mapped: Question[] = serverQuestions.map((q) => ({
           id: q.id,
@@ -187,11 +183,9 @@ export default function Quiz(): JSX.Element {
           })(),
         }));
 
-        // 2) fetch or create attempt by tryoutId + attemptNumberState
         let attemptData: QuizAttemptFromServer | null = null;
 
         if (!attemptNumberState) {
-          // start a new attempt if not provided
           const startRes = await axios.post(
             `http://localhost:3000/quizattempt/start`,
             { tryout_id: tryoutId },
@@ -202,7 +196,6 @@ export default function Quiz(): JSX.Element {
           setCurrentAttempt(attemptData);
           setAttemptNumberState(attemptData.attempt_number);
         } else {
-          // fetch existing attempt
           const aRes = await axios.get<QuizAttemptFromServer>(
             `http://localhost:3000/quizattempt/${encodeURIComponent(tryoutId)}/${encodeURIComponent(String(attemptNumberState))}`,
             { headers: { Authorization: `Bearer ${token}` } }
@@ -212,12 +205,19 @@ export default function Quiz(): JSX.Element {
           setCurrentAttempt(attemptData);
         }
 
-        // 3) compute orderedQuestions and initial answers
+        // Jika attempt sudah "finished", langsung arahkan ke halaman review
+        if (attemptData && attemptData.status === 'finished') {
+          // navigasi ke review dengan tryoutId dan attempt number
+          navigate(
+            `/review?tryoutId=${encodeURIComponent(attemptData.tryout_id)}&attempt=${encodeURIComponent(String(attemptData.attempt_number))}`
+          );
+          return;
+        }
+
         let orderedQuestions: Question[] = mapped.slice();
         const answersFromAttempt: Record<number, string> = {};
 
         if (attemptData && attemptData.question_order) {
-          // parse question_order (ids)
           const qOrder = attemptData.question_order
             .split(',')
             .map(s => s.trim())
@@ -226,26 +226,18 @@ export default function Quiz(): JSX.Element {
 
           const qMap = new Map<number, Question>();
           mapped.forEach(mq => qMap.set(mq.id, mq));
-
-          // keep only questions that exist in the map (safety)
           orderedQuestions = qOrder.map(id => qMap.get(id)).filter(Boolean) as Question[];
 
-          // parse answer_order aligned with orderedQuestions positions
           const { answersMap, flaggedIds } = parseAttemptAnswersAndFlags(attemptData);
-
           Object.assign(answersFromAttempt, answersMap);
-
-          // set flagged questions into parent state (single source of truth)
           if (mounted) setFlaggedQuestions(flaggedIds);
         } else {
-          // fallback: sort by id asc
           orderedQuestions.sort((a, b) => a.id - b.id);
         }
 
         if (!mounted) return;
-
         setQuestions(orderedQuestions);
-        setAnswers(answersFromAttempt); // NOTE: answersFromAttempt has CLEANED answers (no 'f')
+        setAnswers(answersFromAttempt);
         setSelectedQuestionId(orderedQuestions.length > 0 ? orderedQuestions[0].id : null);
         setLoading(false);
       } catch (err) {
@@ -254,53 +246,31 @@ export default function Quiz(): JSX.Element {
         setLoading(false);
       }
     };
-
     void load();
-
     return () => { mounted = false; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tryoutId, attemptNumberState]);
+  }, [tryoutId, attemptNumberState, navigate]);
 
-  // -------------------- handle answer change (sync to backend) --------------------
   const handleAnswerChange = async (questionId: number, answerId: string): Promise<void> => {
-    // update local immediately for snappy UI
     setAnswers(prev => ({ ...prev, [questionId]: answerId }));
-
-    if (!currentAttempt) {
-      console.warn('No currentAttempt found. Answer will not be synced to backend.');
-      return;
-    }
-
+    if (!currentAttempt) return;
     const token = localStorage.getItem('token');
-    if (!token) {
-      console.warn('No token found. Cannot sync answer.');
-      return;
-    }
+    if (!token) return;
 
-    // Build qOrder (numbers) from currentAttempt.question_order
     const qOrder = currentAttempt.question_order
       .split(',')
       .map(s => s.trim())
       .filter(s => s !== '')
       .map(s => Number(s));
 
-    // Build ansArr from currentAttempt.answer_order (or placeholder)
     const ansArr = currentAttempt.answer_order && currentAttempt.answer_order.trim() !== ''
       ? currentAttempt.answer_order.split(',').map(s => s.trim())
       : qOrder.map(() => '-');
 
-    // Find position for this questionId in qOrder, and set answer
     const idx = qOrder.findIndex(qid => qid === questionId);
-    if (idx === -1) {
-      console.error('Question id not found in currentAttempt.question_order', questionId);
-      return;
-    }
-
-    // preserve flag if present: if ansArr[idx] contains 'f', keep it
+    if (idx === -1) return;
     const hasFlag = ansArr[idx]?.includes('f') ?? false;
     ansArr[idx] = (answerId || '-').toString() + (hasFlag ? 'f' : '');
-
-    // Build new answer_order string
     const updatedAnswerOrder = ansArr.join(',');
 
     try {
@@ -309,79 +279,46 @@ export default function Quiz(): JSX.Element {
         { answer_order: updatedAnswerOrder },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      // update attempt state with returned row (if backend returns updated row)
       if (res.status === 200 && res.data) {
         const srv = res.data as QuizAttemptFromServer;
         setCurrentAttempt(srv);
-
-        // reparse answers & flags from server response to ensure sync
         const { answersMap, flaggedIds } = parseAttemptAnswersAndFlags(srv);
         setAnswers(answersMap);
         setFlaggedQuestions(flaggedIds);
       }
     } catch (err) {
       console.error('Gagal update jawaban:', err);
-      // optionally set error state or show toast
     }
   };
 
-  // -------------------- toggle flag (centralized + sync) --------------------
   const handleToggleFlag = async (questionId: number): Promise<void> => {
     const willBeFlagged = !flaggedQuestions.includes(questionId);
-
-    // optimistic UI update
     setFlaggedQuestions(prev => (willBeFlagged ? Array.from(new Set([...prev, questionId])) : prev.filter(id => id !== questionId)));
-
-    // optimistic update of currentAttempt.answer_order and keep answers state unchanged (answers store only letters)
     let optimisticAnsArr: string[] | null = null;
     if (currentAttempt) {
       const qOrder = currentAttempt.question_order.split(',').map(s => Number(s));
       const ansArr = (currentAttempt.answer_order || '').split(',');
       while (ansArr.length < qOrder.length) ansArr.push('-');
-
       const idx = qOrder.indexOf(questionId);
       if (idx !== -1) {
         const currentAns = ansArr[idx] || '-';
-        // remove old f markers
         const cleaned = currentAns.replace(/f/g, '');
-        // if willBeFlagged -> append 'f', otherwise keep cleaned only
         ansArr[idx] = (cleaned === '-' ? '' : cleaned) + (willBeFlagged ? 'f' : '');
       }
       optimisticAnsArr = ansArr;
       setCurrentAttempt(prev => prev ? { ...prev, answer_order: ansArr.join(',') } : prev);
     }
-
-    // sync to backend
     try {
       const token = localStorage.getItem('token');
-      if (!token || !currentAttempt) {
-        // update UI only if no token or attempt (rare)
-        return;
-      }
-
+      if (!token || !currentAttempt) return;
       const patchBody = { answer_order: optimisticAnsArr ? optimisticAnsArr.join(',') : currentAttempt.answer_order };
       const res = await axios.patch(
         `http://localhost:3000/quizattempt/${encodeURIComponent(currentAttempt.tryout_id)}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
         patchBody,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
       if (res.status === 200 && res.data) {
         const srv = res.data as QuizAttemptFromServer;
-        setCurrentAttempt(srv);
-
-        // parse server's authoritative data and update answers & flags
-        const { answersMap, flaggedIds } = parseAttemptAnswersAndFlags(srv);
-        setAnswers(answersMap);
-        setFlaggedQuestions(flaggedIds);
-      } else {
-        // fallback: re-fetch attempt to be safe
-        const aRes = await axios.get<QuizAttemptFromServer>(
-          `http://localhost:3000/quizattempt/${encodeURIComponent(currentAttempt.tryout_id)}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const srv = aRes.data;
         setCurrentAttempt(srv);
         const { answersMap, flaggedIds } = parseAttemptAnswersAndFlags(srv);
         setAnswers(answersMap);
@@ -389,29 +326,10 @@ export default function Quiz(): JSX.Element {
       }
     } catch (err) {
       console.error('Gagal sync flag ke backend:', err);
-      // rollback optimistic UI if sync fails
-      setFlaggedQuestions(prev => (willBeFlagged ? prev.filter(id => id !== questionId) : Array.from(new Set([...prev, questionId]))));
-      // re-fetch to resync
-      try {
-        const token = localStorage.getItem('token');
-        if (token && currentAttempt) {
-          const aRes = await axios.get<QuizAttemptFromServer>(
-            `http://localhost:3000/quizattempt/${encodeURIComponent(currentAttempt.tryout_id)}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          const srv = aRes.data;
-          setCurrentAttempt(srv);
-          const { answersMap, flaggedIds } = parseAttemptAnswersAndFlags(srv);
-          setAnswers(answersMap);
-          setFlaggedQuestions(flaggedIds);
-        }
-      } catch (err2) {
-        console.error('Rollback fetch attempt gagal', err2);
-      }
     }
   };
 
-  // -------------------- finalize attempt --------------------
+  // fungsi finalisasi (tetap pakai handleFinalizeAttempt yang sudah ada)
   const handleFinalizeAttempt = async (): Promise<void> => {
     if (!currentAttempt) return;
     const token = localStorage.getItem('token');
@@ -419,20 +337,15 @@ export default function Quiz(): JSX.Element {
       alert('Silakan login terlebih dahulu');
       return;
     }
-
     try {
-      // compute grade locally (two-decimal string like "83.33")
       const total = questions.length || 1;
       const correctCount = questions.reduce((acc, q) => {
         const ua = (answers[q.id] || '').toLowerCase();
         return acc + (q.answerKey && ua === q.answerKey ? 1 : 0);
       }, 0);
       const percent = (correctCount / total) * 100;
-      const gradeStr = percent.toFixed(2); // e.g. "83.33"
+      const gradeStr = percent.toFixed(2);
 
-      // Build authoritative answer_order to send:
-      // - preserve flags from flaggedQuestions
-      // - use local answers state (clean letters) for each question in the attempt order
       const qOrder = currentAttempt.question_order
         .split(',')
         .map(s => s.trim())
@@ -442,8 +355,12 @@ export default function Quiz(): JSX.Element {
       const ansArrToSend = qOrder.map((qid) => {
         const a = (answers[qid] || '-').toString().trim().toLowerCase();
         const letter = /^[a-e]$/.test(a) ? a : '-';
-        const withFlag = flaggedQuestions.includes(qid) && letter !== '-' ? `${letter}f` : (flaggedQuestions.includes(qid) && letter === '-' ? `f` : letter);
-        // If it's flagged and no letter we send 'f' (keeps semantics consistent with server parsing)
+        const withFlag =
+          flaggedQuestions.includes(qid) && letter !== '-'
+            ? `${letter}f`
+            : flaggedQuestions.includes(qid) && letter === '-'
+            ? `f`
+            : letter;
         return withFlag;
       });
 
@@ -455,7 +372,9 @@ export default function Quiz(): JSX.Element {
       };
 
       const res = await axios.patch(
-        `http://localhost:3000/quizattempt/${encodeURIComponent(currentAttempt.tryout_id)}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
+        `http://localhost:3000/quizattempt/${encodeURIComponent(
+          currentAttempt.tryout_id
+        )}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
         body,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -463,15 +382,24 @@ export default function Quiz(): JSX.Element {
       if (res.status === 200 && res.data) {
         const updatedAttempt = res.data as QuizAttemptFromServer;
         setCurrentAttempt(updatedAttempt);
-        alert(`Attempt selesai! Grade kamu: ${updatedAttempt.grade ?? gradeStr}`);
+
+        // ✅ Navigasi ke URL dengan query param
+        navigate(
+          `/review?tryoutId=${encodeURIComponent(updatedAttempt.tryout_id)}&attempt=${encodeURIComponent(
+            String(updatedAttempt.attempt_number)
+          )}`
+        );
       } else {
-        // fallback behavior: show computed grade even if server didn't return it
-        alert(`Attempt selesai! Grade kamu: ${gradeStr}`);
+        // fallback
+        navigate(
+          `/review?tryoutId=${encodeURIComponent(currentAttempt.tryout_id)}&attempt=${encodeURIComponent(
+            String(currentAttempt.attempt_number)
+          )}`
+        );
       }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error('Gagal finalize attempt:', err);
-      // better error message for 404 specifically
       if (err?.response?.status === 404) {
         alert('Finalize gagal: endpoint tidak ditemukan (404). Silakan periksa server.');
       } else {
@@ -480,6 +408,24 @@ export default function Quiz(): JSX.Element {
     }
   };
 
+  // wrapper untuk membuka konfirmasi submit — ini dipanggil dari tombol Submit
+  const openFinalizeConfirmation = (): void => {
+    const total = questions.length;
+    const answeredCountLocal = Object.keys(answers).filter(k => answers[Number(k)]).length;
+    const notAnswered = Math.max(0, total - answeredCountLocal);
+    setUnansweredCount(notAnswered);
+    setConfirmOpen(true);
+  };
+
+  const confirmFinalize = async (): Promise<void> => {
+    setConfirmOpen(false);
+    setIsFinalizing(true);
+    try {
+      await handleFinalizeAttempt();
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
 
   const goToPreviousQuestion = (): void => {
     if (selectedQuestionId === null) return;
@@ -495,18 +441,12 @@ export default function Quiz(): JSX.Element {
     }
   };
 
-  // new: check allAnswered by ensuring each question has a valid answer letter (a-e)
-  const allAnswered = questions.length > 0 && questions.every(q => /^[a-e]$/.test((answers[q.id] ?? '').toLowerCase()));
-
-  // Intersection observer for showAll
   useEffect(() => {
     if (!showAll || questions.length === 0) return;
-
-     let margin = '-50px 0px -40% 0px';
+    let margin = '-50px 0px -40% 0px';
     if (isMobile) margin = '-60px 0px -23% 0px';
     else if (isTablet) margin = '-60px 0px -43% 0px';
     else if (isLarge) margin = '-60px 0px -30% 0px';
-
     const observer = new IntersectionObserver((entries) => {
       const visible = entries.filter(e => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
       if (visible?.target) {
@@ -515,12 +455,10 @@ export default function Quiz(): JSX.Element {
         if (!Number.isNaN(qid)) setActiveInViewId(qid);
       }
     }, { root: null, threshold: 0.5, rootMargin: margin });
-
     questions.forEach(q => {
       const el = questionRefs.current[q.id];
       if (el) observer.observe(el);
     });
-
     return () => observer.disconnect();
   }, [showAll, questions, isMobile, isTablet, isLaptop, isLarge]);
 
@@ -536,7 +474,149 @@ export default function Quiz(): JSX.Element {
     }
   };
 
-  // --------------- render states ---------------
+  // ... encouragementVariants dan semua logic progress tetap sama ...
+  const encouragementVariants: Record<string, Record<number, string>> = {
+    serius: {
+    0: 'Fokus, perjalanan baru saja dimulai.',
+    20: 'Teruskan dengan konsisten, hasil akan mengikuti.',
+    40: 'Kamu sudah hampir setengah jalan, tetap tenang.',
+    60: 'Kerja kerasmu terlihat, jangan kendur.',
+    80: 'Sedikit lagi, jangan sia-siakan usahamu.',
+    100: 'Selesai. Hasilmu adalah cerminan dari ketekunanmu.',
+  },
+  playful: {
+    0: 'Yuhuu! Baru mulai, seru nih!',
+    20: 'Mantap, mesin sudah panas nih 😎',
+    40: 'Setengah jalan lagi dong, keep it fun!',
+    60: 'Gokil, lebih dari setengah! 🚀',
+    80: 'Tinggal secuil, gas terus!',
+    100: 'Boom! Kamu berhasil 🎉',
+  },
+  game: {
+    0: 'Level 1 unlocked, siap berpetualang!',
+    20: 'XP +20%, karakter makin kuat!',
+    40: 'Setengah stage clear, power up! ⚡',
+    60: 'Boss stage sebentar lagi!',
+    80: 'Final battle tinggal sedikit lagi!',
+    100: 'Victory Royale! 🏆',
+  },
+  genZ: {
+    0: 'Gaskeun, baru mulai ni guys 😎',
+    20: 'Anjay, udah lumayan nih!',
+    40: 'Wihh, setengah jalan dong!',
+    60: 'Udah jauh banget, jangan nyerah!',
+    80: 'Sisa dikit lagi bro, fokus!',
+    100: 'GG gaming, tamat! 🔥',
+  },
+  chill: {
+    0: 'Santai aja, baru pemanasan kok.',
+    20: 'Nice, udah mulai dapet ritme.',
+    40: 'Separuh jalan udah lewat, gampang lah.',
+    60: 'Sip, udah lebih dari setengah.',
+    80: 'Nyantai aja, tinggal dikit.',
+    100: 'Beress, good job ✨',
+  },
+  anime: {
+    0: 'Petualanganmu baru dimulai, nakama! ⚔️',
+    20: 'Kekuatanmu meningkat, jangan berhenti sekarang!',
+    40: 'Kamu sudah setengah jalan, percaya pada takdirmu!',
+    60: 'Semangatmu membara seperti api ninjaku! 🔥',
+    80: 'Final arc sebentar lagi, bersiaplah!',
+    100: 'Kamu pahlawan sejati, arc ini tamat 🎉',
+  },
+  romantis: {
+    0: 'Awal yang indah, seperti pertemuan pertama kita 💖',
+    20: 'Sedikit demi sedikit, hatiku semakin kagum.',
+    40: 'Kamu sudah sejauh ini, aku bangga.',
+    60: 'Semangatmu bikin aku makin jatuh hati 💕',
+    80: 'Nyaris sampai, cintaku jadi energi tambahanmu.',
+    100: 'Sempurna! Kamu dan perjuanganmu bikin aku tersenyum.',
+  },
+  islami: {
+    0: 'Bismillah, setiap awal niatkan karena Allah.',
+    20: 'Teruslah berusaha, Allah melihat ikhtiarmu.',
+    40: 'Setengah perjalanan, jangan lupa berdoa.',
+    60: 'Kesabaran adalah kunci, kamu hampir sampai.',
+    80: 'Sedikit lagi, yakinlah pertolongan Allah dekat.',
+    100: 'Alhamdulillah, selesai dengan penuh perjuangan.',
+  },
+  dark: {
+    0: 'Baru mulai? Tenang, penderitaan baru dimulai 😈',
+    20: 'Lumayan, tapi jangan terlalu percaya diri.',
+    40: 'Setengah jalan, jangan pikir bisa kabur.',
+    60: 'Masih hidup? Hebat juga kamu.',
+    80: 'Nyaris selesai, tapi jangan lega dulu.',
+    100: 'Akhirnya… selesai. Tapi apakah benar-benar berakhir? 👁️',
+  },
+  inspirasi: {
+    0: 'Perjalanan panjang selalu dimulai dari satu langkah.',
+    20: 'Ketekunanmu adalah cahaya di awal gelap.',
+    40: 'Setengah jalan, bukti nyata kerja kerasmu.',
+    60: 'Kamu sedang membuktikan dirimu lebih kuat dari kemarin.',
+    80: 'Hampir sampai, jangan berhenti sekarang.',
+    100: 'Luar biasa! Kamu sudah menuntaskan perjalananmu.',
+  },
+    pantun: {
+    0: 'Jalan-jalan ke kota Blitar, Quiz dimulai ayo semangat belajar ✨',
+    20: 'Pergi ke pasar membeli ikan, Baru 20% jangan cepat tinggalkan 🐟',
+    40: 'Naik perahu di tengah lautan, 40% tercapai, lanjutkan perjuangan 🚤',
+    60: 'Petik mangga rasanya manis, 60% sudah, makin dekat dengan finis 🥭',
+    80: 'Bunga mekar indah di taman, 80% tercapai, sebentar lagi kemenangan 🌸',
+    100: 'Burung nuri hinggap di dahan, Quiz selesai, selamat atas keberhasilan 🎉',
+  },
+    quotes_filosof: {
+    0: 'The journey of a thousand miles begins with a single step. — Lao Tzu',
+    20: 'Be the change that you wish to see in the world. — Mahatma Gandhi',
+    40: 'Life can only be understood backwards; but it must be lived forwards. — Søren Kierkegaard',
+    60: 'Experience without theory is blind, but theory without experience is mere intellectual play. — Immanuel Kant',
+    80: 'Put your heart, mind, and soul into even your smallest acts. This is the secret of success. — Swami Sivananda',
+    100: 'No one saves us but ourselves. We ourselves must walk the path. — Buddha',
+  },
+    survivor_puncak: {
+    0: 'Hidup itu seperti gunung: berat didaki, tapi pemandangannya luar biasa saat sampai puncak.',  // “Life is like a mountain. Hard to climb, but once you get to the top, the view is beautiful.” :contentReference[oaicite:1]{index=1}
+  20: 'Semakin tinggi kau mendaki, semakin kecil masalah yang kau lihat.',  // “The higher you climb on the mountain, the harder the wind blows.” :contentReference[oaicite:2]{index=2}
+  40: 'Tak perlu mendaki hanya untuk menanam bendera, tapi untuk merasakan tantangannya.',  // “Climb the mountain not to plant your flag, but to embrace the challenge, enjoy the air and behold the view.” :contentReference[oaicite:3]{index=3}
+  60: 'Semua kebahagiaan dan pertumbuhan terjadi saat kau menaiki jalannya, bukan hanya di puncak.',  // “Everyone wants to live on top of the mountain, but all the happiness and growth occurs while you are climbing it.” :contentReference[oaicite:4]{index=4}
+  80: 'Tak ada gunung yang terlalu tinggi bila semangatmu juga besar.',  // gabungan inspirasi dari beberapa quotes mountain :contentReference[oaicite:5]{index=5}
+  100: 'Puncak bukan tujuan semata, tapi bukti bahwa kau mampu melewati setiap tanjakan.',  // inspirasi dari quotes mountain :contentReference[oaicite:6]{index=6}
+  },
+    heroik_lotr: {
+     0: 'I can do this all day.',  // “I can do this all day.” :contentReference[oaicite:8]{index=8}
+  20: 'The hardest choices require the strongest wills.',  // “The hardest choices require the strongest wills.” :contentReference[oaicite:9]{index=9}
+  40: 'It’s not enough to be against something. You have to be for something better.',  // :contentReference[oaicite:10]{index=10}
+  60: 'No man can win every battle, but no man should fall without a struggle.',  // :contentReference[oaicite:11]{index=11}
+  80: 'Part of the journey is the end.',  // :contentReference[oaicite:12]{index=12}
+  100: 'It’s not about how much we lost. It’s about how much we have left.',  // :contentReference[oaicite:13]{index=13}
+  },
+  game_quote: {
+    0: 'It’s dangerous to go alone! Take this.',
+  20: 'Stay awhile and listen!',                                 // mendorong untuk terus memperhatikan tugas
+  40: 'The cake is a lie.',                                          // bikin penasaran, jangan sampai tertipu kesalahan
+  60: 'Do a barrel roll!',                                      // menyemangati untuk bergerak mengikuti instruksi
+  80: 'Endure and survive.',                                 // hampir selesai, tahan dulu, terus bertahan
+  100: 'FINISH HIM!'                                           // selesai, berikan “serangan akhir” motivasi
+},
+  };
+
+  const totalQuestions = questions.length;
+  const answeredCount = Object.keys(answers).filter(k => answers[Number(k)]).length;
+  const progressPercent = totalQuestions > 0 ? (answeredCount / totalQuestions) * 100 : 0;
+
+  const [selectedVariant] = useState(() => {
+    const keys = Object.keys(encouragementVariants);
+    const randomKey = keys[Math.floor(Math.random() * keys.length)];
+    return randomKey;
+  });
+  const currentMessage = (() => {
+    const messages = encouragementVariants[selectedVariant];
+    if (progressPercent >= 100) return messages[100];
+    if (progressPercent >= 80) return messages[80];
+    if (progressPercent >= 60) return messages[60];
+    if (progressPercent >= 40) return messages[40];
+    if (progressPercent >= 20) return messages[20];
+    return messages[0];
+  })();
+
   if (loading) {
     return (
       <Stack justifyContent="center" alignItems="center" sx={{ height: '60vh' }}>
@@ -554,178 +634,265 @@ export default function Quiz(): JSX.Element {
   }
 
   return (
-    <Stack
-      direction={isMobile ? 'column' : 'row'}
-      spacing={4}
-      sx={{
-        paddingX: '20px',
-        mx: 'auto',
-        mt: 4,
-        pr: {
-          xs: '20px',
-          sm: '360px',
-          md: '440px',
-          lg: '520px',
-          xl: '540px',
-        },
-      }}
-      alignItems="stretch"
-    >
-      {/* NAV for mobile */}
-      {isMobile && (
-        <Box sx={{ mb: 2, position: 'sticky', top: 70, zIndex: 10 }}>
-          <QuizNavigation
-            totalQuestions={questions.length}
-            selectedQuestion={
-              showAll
-                ? (() => {
-                    if (!questions.length) return 1;
-                    const idx = questions.findIndex(
-                      q => q.id === (activeInViewId ?? questions[0].id)
-                    );
-                    return idx >= 0 ? idx + 1 : 1;
-                  })()
-                : (() => {
-                    const idx = questions.findIndex(q => q.id === selectedQuestionId);
-                    return idx >= 0 ? idx + 1 : 1;
-                  })()
-            }
-            onSelectQuestion={handleSelectQuestion}
-            answeredQuestions={questions
-              .map((q, idx) => (answers[q.id] ? idx + 1 : -1))
-              .filter(n => n !== -1)}
-            flaggedQuestions={flaggedQuestions.map(fid => {
-              const idx = questions.findIndex(q => q.id === fid);
-              return idx + 1;
-            })}
-            onToggleFlag={(idNumOrder: number) => {
-              const idx = idNumOrder - 1;
-              const q = questions[idx];
-              if (q) void handleToggleFlag(q.id);
-            }}
-            showAll={showAll}
-            onToggleShowAll={() => setShowAll(prev => !prev)}
-            onTimeUp={handleFinalizeAttempt}
-            onFontSizeChange={(size) => setFontSize(size)}
-            startTime={currentAttempt?.start_time ?? ''}
-            durationMinutes={currentAttempt?.duration_minutes ?? 0}
-          />
-        </Box>
-      )}
-
-      {/* MAIN question area */}
-      <Box flex={1} width="100%" sx={{ display: 'flex', flexDirection: 'column' }}>
-        <Stack spacing={4} sx={{ width: '100%', flexGrow: 1 }}>
-          {showAll ? (
-            <>
-              {/* single form with all questions; register refs */}
-              <QuestionForm
-                questions={questions as QCompQuestion[]}
-                answers={answers}
-                onAnswerChange={(qid: number, aid: string) => { void handleAnswerChange(qid, aid); }}
-                flaggedQuestions={flaggedQuestions}
-                onToggleFlag={(qid: number) => { void handleToggleFlag(qid); }}
-                fontSize={fontSize}
-                currentAttemptId={{
-                  tryoutId: tryoutId ?? '',
-                  attemptNumber: attemptNumberState ?? 0,
-                }}
-                registerQuestionRef={(id: number, el: HTMLDivElement | null) => {
-                  questionRefs.current[id] = el;
-                }}
-              />
-
-              <Button variant="contained" size="large" color={allAnswered ? 'primary' : 'inherit'} disabled={!allAnswered} onClick={handleFinalizeAttempt}>
-                Submit
-              </Button>
-            </>
-          ) : (
-            <QuestionForm
-              questions={questions as QCompQuestion[]}
-              selectedQuestionId={selectedQuestionId ?? undefined}
-              answers={answers}
-              onAnswerChange={(qid: number, aid: string) => { void handleAnswerChange(qid, aid); }}
-              flaggedQuestions={flaggedQuestions}
-              onToggleFlag={(qid: number) => { void handleToggleFlag(qid); }}
-              fontSize={fontSize}
-              currentAttemptId={{
-                tryoutId: tryoutId ?? '',
-                attemptNumber: attemptNumberState ?? 0,
+    <>
+      <Stack
+        direction={isMobile ? 'column' : 'row'}
+        spacing={4}
+        sx={{
+          paddingX: '20px',
+          mx: 'auto',
+          mt: 4,
+          pr: {
+            xs: '20px',
+            sm: '360px',
+            md: '440px',
+            lg: '520px',
+            xl: '540px',
+          },
+        }}
+        alignItems="stretch"
+      >
+        {isMobile && (
+          <Box sx={{ mb: 2, position: 'sticky', top: 0, zIndex: 10 }}>
+            <QuizNavigation
+              totalQuestions={questions.length}
+              selectedQuestion={
+                showAll
+                  ? (() => {
+                      if (!questions.length) return 1;
+                      const idx = questions.findIndex(
+                        q => q.id === (activeInViewId ?? questions[0].id)
+                      );
+                      return idx >= 0 ? idx + 1 : 1;
+                    })()
+                  : (() => {
+                      const idx = questions.findIndex(q => q.id === selectedQuestionId);
+                      return idx >= 0 ? idx + 1 : 1;
+                    })()
+              }
+              onSelectQuestion={handleSelectQuestion}
+              answeredQuestions={questions
+                .map((q, idx) => (answers[q.id] ? idx + 1 : -1))
+                .filter(n => n !== -1)}
+              flaggedQuestions={flaggedQuestions.map(fid => {
+                const idx = questions.findIndex(q => q.id === fid);
+                return idx + 1;
+              })}
+              onToggleFlag={(idNumOrder: number) => {
+                const idx = idNumOrder - 1;
+                const q = questions[idx];
+                if (q) void handleToggleFlag(q.id);
               }}
+              showAll={showAll}
+              onToggleShowAll={() => setShowAll(prev => !prev)}
+              onTimeUp={openFinalizeConfirmation}
+              onFontSizeChange={(size) => setFontSize(size)}
+              startTime={currentAttempt?.start_time ?? ''}
+              durationMinutes={currentAttempt?.duration_minutes ?? 0}
             />
-          )}
+          </Box>
+        )}
 
-          {!showAll && isMobile && (
-            <Stack direction="row" spacing={2} justifyContent="center">
-              <Button variant="outlined" onClick={goToPreviousQuestion} disabled={questions.findIndex(q => q.id === selectedQuestionId) <= 0}>
-                Kiri
-              </Button>
-              <Button variant="contained" size="large" color={allAnswered ? 'primary' : 'inherit'} disabled={!allAnswered} onClick={handleFinalizeAttempt}>
-                Submit
-              </Button>
-              <Button variant="outlined" onClick={goToNextQuestion} disabled={(() => { const idx = questions.findIndex(q => q.id === selectedQuestionId); return idx === -1 || idx === questions.length - 1; })()}>
-                Kanan
-              </Button>
-            </Stack>
-          )}
-        </Stack>
-      </Box>
+        <Box flex={1} width="100%" sx={{ display: 'flex', flexDirection: 'column' }}>
+          <Stack spacing={4} sx={{ width: '100%', flexGrow: 1,pb:'250px' }}>
+            {showAll ? (
+              <>
+                <QuestionForm
+                  questions={questions as QCompQuestion[]}
+                  answers={answers}
+                  onAnswerChange={(qid: number, aid: string) => { void handleAnswerChange(qid, aid); }}
+                  flaggedQuestions={flaggedQuestions}
+                  onToggleFlag={(qid: number) => { void handleToggleFlag(qid); }}
+                  fontSize={fontSize}
+                  currentAttemptId={{
+                    tryoutId: tryoutId ?? '',
+                    attemptNumber: attemptNumberState ?? 0,
+                  }}
+                  registerQuestionRef={(id: number, el: HTMLDivElement | null) => {
+                    questionRefs.current[id] = el;
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  size="large"
+                  color="primary"
+                  onClick={openFinalizeConfirmation}
+                >
+                  Submit
+                </Button>
+              </>
+            ) : (
+              <>
+                <QuestionForm
+                  questions={questions as QCompQuestion[]}
+                  selectedQuestionId={selectedQuestionId ?? undefined}
+                  answers={answers}
+                  onAnswerChange={(qid: number, aid: string) => { void handleAnswerChange(qid, aid); }}
+                  flaggedQuestions={flaggedQuestions}
+                  onToggleFlag={(qid: number) => { void handleToggleFlag(qid); }}
+                  fontSize={fontSize}
+                  currentAttemptId={{
+                    tryoutId: tryoutId ?? '',
+                    attemptNumber: attemptNumberState ?? 0,
+                  }}
+                />
+                <Stack direction="row" spacing={2} justifyContent="space-between">
+                  <Button
+                    variant="outlined"
+                    onClick={goToPreviousQuestion}
+                    disabled={questions.findIndex(q => q.id === selectedQuestionId) <= 0}
+                    sx={{fontSize:'10px'}}
+                  >
+                    Sebelumnya
+                  </Button>
+                  {questions.findIndex(q => q.id === selectedQuestionId) === questions.length - 1 && (
+                    <Button
+                      variant="contained"
+                      size="large"
+                      color="primary"
+                      onClick={openFinalizeConfirmation}
+                      sx={{fontSize:'12px'}}
+                    >
+                      Submit
+                    </Button>
+                  )}
+                  <Button
+                    variant="outlined"
+                    onClick={goToNextQuestion}
+                    disabled={(() => {
+                      const idx = questions.findIndex(q => q.id === selectedQuestionId);
+                      return idx === -1 || idx === questions.length - 1;
+                    })()}
+                    sx={{fontSize:'10px'}}
+                  >
+                    Selanjutnya
+                  </Button>
+                </Stack>
+              </>
+            )}
+          </Stack>
+        </Box>
 
-      {/* RIGHT NAV for desktop */}
-      {!isMobile && (
-        <Box sx={{ width: { xs: '100%', sm: 320, md: 400, lg: 480, xl: 520 }, position: 'fixed', right: 20, top: { sm: '120px', md: '145px' }, height: 'auto', flexShrink: 0 }}>
-          <QuizNavigation
-            totalQuestions={questions.length}
-            selectedQuestion={
-              showAll
-                ? (() => {
-                    if (!questions.length) return 1;
-                    const idx = questions.findIndex(
-                      q => q.id === (activeInViewId ?? questions[0].id)
-                    );
-                    return idx >= 0 ? idx + 1 : 1;
-                  })()
-                : (() => {
-                    const idx = questions.findIndex(q => q.id === selectedQuestionId);
-                    return idx >= 0 ? idx + 1 : 1;
-                  })()
-            }
-            onSelectQuestion={handleSelectQuestion}
-            answeredQuestions={questions
-              .map((q, idx) => (answers[q.id] ? idx + 1 : -1))
-              .filter(n => n !== -1)}
-            flaggedQuestions={flaggedQuestions.map(fid => {
-              const idx = questions.findIndex(q => q.id === fid);
-              return idx + 1;
-            })}
-            onToggleFlag={(idNumOrder: number) => {
-              const idx = idNumOrder - 1;
-              const q = questions[idx];
-              if (q) void handleToggleFlag(q.id);
+        {!isMobile && (
+          <Box
+            sx={{
+              width: { xs: '100%', sm: 320, md: 400, lg: 480, xl: 520 },
+              position: 'fixed',
+              right: 20,
+              top: { sm: '32px', md: '32px' },
+              height: 'auto',
+              flexShrink: 0,
             }}
-            showAll={showAll}
-            onToggleShowAll={() => setShowAll(prev => !prev)}
-            onTimeUp={handleFinalizeAttempt}
-            onFontSizeChange={(size) => setFontSize(size)}
-            startTime={currentAttempt?.start_time ?? ''}
-            durationMinutes={currentAttempt?.duration_minutes ?? 0}
-          />
+          >
+            <QuizNavigation
+              totalQuestions={questions.length}
+              selectedQuestion={
+                showAll
+                  ? (() => {
+                      if (!questions.length) return 1;
+                      const idx = questions.findIndex(
+                        q => q.id === (activeInViewId ?? questions[0].id)
+                      );
+                      return idx >= 0 ? idx + 1 : 1;
+                    })()
+                  : (() => {
+                      const idx = questions.findIndex(q => q.id === selectedQuestionId);
+                      return idx >= 0 ? idx + 1 : 1;
+                    })()
+              }
+              onSelectQuestion={handleSelectQuestion}
+              answeredQuestions={questions
+                .map((q, idx) => (answers[q.id] ? idx + 1 : -1))
+                .filter(n => n !== -1)}
+              flaggedQuestions={flaggedQuestions.map(fid => {
+                const idx = questions.findIndex(q => q.id === fid);
+                return idx + 1;
+              })}
+              onToggleFlag={(idNumOrder: number) => {
+                const idx = idNumOrder - 1;
+                const q = questions[idx];
+                if (q) void handleToggleFlag(q.id);
+              }}
+              showAll={showAll}
+              onToggleShowAll={() => setShowAll(prev => !prev)}
+              onTimeUp={openFinalizeConfirmation}
+              onFontSizeChange={(size) => setFontSize(size)}
+              startTime={currentAttempt?.start_time ?? ''}
+              durationMinutes={currentAttempt?.duration_minutes ?? 0}
+            />
+          </Box>
+        )}
+      </Stack>
 
-          {!showAll && (
-            <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 2 }}>
-              <Button variant="outlined" onClick={goToPreviousQuestion} disabled={questions.findIndex(q => q.id === selectedQuestionId) <= 0}>
-                Kiri
-              </Button>
-              <Button variant="contained" size="large" color={allAnswered ? 'primary' : 'inherit'} disabled={!allAnswered} onClick={handleFinalizeAttempt}>
-                Submit
-              </Button>
-              <Button variant="outlined" onClick={goToNextQuestion} disabled={(() => { const idx = questions.findIndex(q => q.id === selectedQuestionId); return idx === -1 || idx === questions.length - 1; })()}>
-                Kanan
-              </Button>
-            </Stack>
-          )}
+      {!isMobile && (
+        <Box
+          sx={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            width: '100%',
+            bgcolor: '#f5f5f5',
+            p: 1,
+            zIndex: 20,
+          }}
+        >
+          <Typography
+            variant="body2"
+            align="center"
+            sx={{ mb: 0.5, fontWeight: 'bold' }}
+          >
+            {currentMessage}
+          </Typography>
+          <LinearProgress
+            variant="determinate"
+            value={progressPercent}
+            sx={{
+              height: 10,
+              borderRadius: 5,
+              bgcolor: '#ddd',
+              '& .MuiLinearProgress-bar': {
+                bgcolor: '#757575',
+              },
+            }}
+          />
+          <Typography variant="caption" align="center" display="block" sx={{ mt: 0.5 }}>
+            {`${Math.round(progressPercent)}% terjawab`}
+          </Typography>
         </Box>
       )}
-    </Stack>
+
+      {/* Dialog konfirmasi finalisasi */}
+      <Dialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        aria-labelledby="confirm-finalize-dialog"
+      >
+        <DialogTitle id="confirm-finalize-dialog">Konfirmasi Penyelesaian Ujian</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {unansweredCount === 0 ? (
+              <>
+                Kamu telah menjawab semua pertanyaan. Apakah kamu yakin ingin menyelesaikan ujian dan melakukan finalisasi?
+              </>
+            ) : (
+              <>
+                Terdapat <strong>{unansweredCount}</strong> soal yang belum terjawab. Jika kamu melanjutkan, soal tersebut akan dianggap belum terjawab. Apakah kamu yakin ingin menyelesaikan ujian?
+              </>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)} disabled={isFinalizing}>Batal</Button>
+          <Button
+            onClick={() => { void confirmFinalize(); }}
+            variant="contained"
+            color="primary"
+            disabled={isFinalizing}
+          >
+            {isFinalizing ? 'Memproses...' : 'Ya, lanjutkan'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
