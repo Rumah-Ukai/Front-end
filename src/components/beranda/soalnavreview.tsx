@@ -1,5 +1,5 @@
-// src/components/beranda/QuizNavigation.tsx
-import { useState } from 'react';
+// src/components/beranda/QuizReview.tsx
+import { useState, useEffect } from 'react';
 import {
   Stack,
   Button,
@@ -10,24 +10,32 @@ import {
   IconButton,
   Typography,
   Tooltip,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import axios from 'axios';
+import { tokensSet } from '../../theme/tokens';
 
-interface QuizNavigationProps {
+interface QuizReviewProps {
   totalQuestions: number;
   selectedQuestion: number; // nomor urut 1..N
   onSelectQuestion: (numOrder: number) => void;
   showAll: boolean;
   onToggleShowAll: () => void;
   onFontSizeChange: (size: 'small' | 'normal' | 'large') => void;
-
-  // Review mode selalu aktif
   grade: string | null;
   correctQuestions?: number[];
   incorrectQuestions?: number[];
 }
 
-export default function QuizNavigation({
+interface ThemeFromDB {
+  palette: keyof typeof tokensSet;
+}
+
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+
+export default function QuizReview({
   totalQuestions,
   selectedQuestion,
   onSelectQuestion,
@@ -37,35 +45,69 @@ export default function QuizNavigation({
   grade,
   correctQuestions = [],
   incorrectQuestions = [],
-}: QuizNavigationProps) {
+}: QuizReviewProps) {
   const [expanded, setExpanded] = useState<boolean>(true);
   const [fontSize, setFontSize] = useState<'small' | 'normal' | 'large'>('normal');
+  const [themePalette, setThemePalette] = useState(tokensSet.palette1);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // Ambil tema dari DB
+  useEffect(() => {
+    const fetchTheme = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const res = await axios.get<ThemeFromDB>(`${API_BASE}/user`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.data?.palette && tokensSet[res.data.palette]) {
+          setThemePalette(tokensSet[res.data.palette]);
+        }
+      } catch (err) {
+        console.error('Gagal ambil tema', err);
+      }
+    };
+
+    void fetchTheme();
+  }, []);
+
+  // pewarnaan nomor soal
+  const getButtonColorsForNum = (numOrder: number) => {
+    if (correctQuestions.includes(numOrder)) {
+      return { bg: themePalette.success, hover: themePalette.primaryDark, text: themePalette.primaryContrastText };
+    }
+    if (incorrectQuestions.includes(numOrder)) {
+      return { bg: themePalette.error, hover: themePalette.primaryDark, text: themePalette.primaryContrastText };
+    }
+    return { bg: themePalette.primary, hover: themePalette.primaryDark, text: themePalette.primaryContrastText };
+  };
 
   const handleFontSize = (size: 'small' | 'normal' | 'large') => {
     setFontSize(size);
     onFontSizeChange(size);
   };
 
-  // pewarnaan nomor soal (tetap gunakan array correct/incorrect dari props)
-  const getButtonColorsForNum = (numOrder: number) => {
-    if (correctQuestions.includes(numOrder)) {
-      return { bg: '#2e7d32', hover: '#1b5e20', text: '#fff' }; // green
-    }
-    if (incorrectQuestions.includes(numOrder)) {
-      return { bg: '#d32f2f', hover: '#9a0007', text: '#fff' }; // red
-    }
-    return { bg: '#1976d2', hover: '#115293', text: '#fff' }; // default blue
-  };
+  const [windowHeight, setWindowHeight] = useState<number>(window.innerHeight);
+  useEffect(() => {
+    const onResize = () => setWindowHeight(window.innerHeight);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   return (
-    <Card sx={{ boxShadow: 3, borderRadius: 2, width: '100%' }}>
-      {/* Header (disesuaikan mirip soal nav asli) */}
+    <Card sx={{ boxShadow: 3, borderRadius: 2, width: '100%', bgcolor: themePalette.primaryContrastText }}>
+      {/* Header */}
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          backgroundColor: '#1976d2',
+          backgroundColor: themePalette.primaryDark,
+   borderColor: themePalette.primary,
           px: 1,
           py: 0.5,
           minHeight: 44,
@@ -74,7 +116,7 @@ export default function QuizNavigation({
         <Typography
           variant="subtitle2"
           sx={{
-            color: 'common.white',
+            color: themePalette.primaryContrastText,
             fontWeight: 700,
             letterSpacing: 0.3,
             fontSize: '17px',
@@ -90,7 +132,7 @@ export default function QuizNavigation({
               aria-label="expand"
               onClick={() => setExpanded((e) => !e)}
               sx={{
-                color: 'common.white',
+                color: themePalette.primaryContrastText,
                 transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
                 transition: '0.25s',
                 '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
@@ -105,21 +147,24 @@ export default function QuizNavigation({
       {/* Collapsible content */}
       <Collapse in={expanded} timeout="auto" unmountOnExit>
         <CardContent sx={{ pt: 1, pb: 1 }}>
-          {/* Tombol kontrol (label dan ukuran disesuaikan agar mirip) */}
-          <Stack
-            direction="row"
-            spacing={1}
-            mb={1}
-            alignItems="center"
-            justifyContent={'space-between'}
-            display={'flex'}
-          >
+          {/* Tombol kontrol */}
+          <Stack direction="row" spacing={1} mb={1} alignItems="center" justifyContent={'space-between'} display={'flex'}>
             <Tooltip title={showAll ? 'Fokus ke satu soal' : 'Perlihatkan semua soal'} arrow>
               <Button
                 size="small"
-                variant="outlined"
+                variant="contained"
                 onClick={onToggleShowAll}
-                sx={{ flexGrow: 1, minWidth: 'auto' }}
+                sx={{
+                  flexGrow: 1,
+                  minWidth: 'auto',
+                  bgcolor: themePalette.primaryDark,
+                  borderColor: themePalette.primaryDark,
+                  color: themePalette.primaryContrastText,
+                  '&:hover': {
+                    bgcolor: themePalette.primaryLight,
+                    borderColor: themePalette.primaryLight,
+                  },
+                }}
               >
                 {showAll ? 'Semua soal' : 'Lihat 1 soal'}
               </Button>
@@ -130,7 +175,15 @@ export default function QuizNavigation({
                 size="small"
                 variant={fontSize === 'small' ? 'contained' : 'outlined'}
                 onClick={() => handleFontSize('small')}
-                sx={{ flexGrow: 1, minWidth: 'auto', fontSize: '14px' }}
+                sx={{
+                  flexGrow: 1,
+                  minWidth: 'auto',
+                  fontSize: '14px',
+                  backgroundColor: fontSize === 'small' ? themePalette.primaryDark : themePalette.primaryLight,
+                  color: fontSize === 'small' ? themePalette.primaryContrastText : themePalette.textPrimary,
+                  borderColor: themePalette.primaryLight,
+                  '&:hover': { bgcolor: themePalette.primaryDark, borderColor: themePalette.primaryDark },
+                }}
               >
                 A-
               </Button>
@@ -141,7 +194,15 @@ export default function QuizNavigation({
                 size="small"
                 variant={fontSize === 'normal' ? 'contained' : 'outlined'}
                 onClick={() => handleFontSize('normal')}
-                sx={{ flexGrow: 1, minWidth: 'auto', fontSize: '16px' }}
+                sx={{
+                  flexGrow: 1,
+                  minWidth: 'auto',
+                  fontSize: '16px',
+                  backgroundColor: fontSize === 'normal' ? themePalette.primaryDark : themePalette.primaryLight,
+                  color: fontSize === 'normal' ? themePalette.primaryContrastText : themePalette.textPrimary,
+                  borderColor: themePalette.primaryLight,
+                  '&:hover': { bgcolor: themePalette.primaryDark, borderColor: themePalette.primaryDark },
+                }}
               >
                 A
               </Button>
@@ -152,14 +213,22 @@ export default function QuizNavigation({
                 size="small"
                 variant={fontSize === 'large' ? 'contained' : 'outlined'}
                 onClick={() => handleFontSize('large')}
-                sx={{ flexGrow: 1, minWidth: 'auto', fontSize: '18px' }}
+                sx={{
+                  flexGrow: 1,
+                  minWidth: 'auto',
+                  fontSize: '18px',
+                  backgroundColor: fontSize === 'large' ? themePalette.primaryDark : themePalette.primaryLight,
+                  color: fontSize === 'large' ? themePalette.primaryContrastText : themePalette.textPrimary,
+                  borderColor: themePalette.primaryLight,
+                  '&:hover': { bgcolor: themePalette.primaryDark, borderColor: themePalette.primaryDark },
+                }}
               >
                 A+
               </Button>
             </Tooltip>
           </Stack>
 
-          {/* Grid nomor soal (layout & scrollbar disesuaikan mirip asli) */}
+          {/* Grid nomor soal */}
           <Box
             display="grid"
             gridTemplateColumns={{
@@ -170,19 +239,13 @@ export default function QuizNavigation({
             }}
             gap={1}
             sx={{
-              maxHeight: { xs: 260, sm: 'calc(100vh - 250px)' },
+              maxHeight: isMobile ? 260 : windowHeight - 250,
               overflowY: 'auto',
               pr: 1,
               '&::-webkit-scrollbar': { width: '8px' },
-              '&::-webkit-scrollbar-track': {
-                backgroundColor: '#f0f0f0',
-                borderRadius: '10px',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                backgroundColor: '#bbb',
-                borderRadius: '10px',
-              },
-              '&::-webkit-scrollbar-thumb:hover': { backgroundColor: '#999' },
+              '&::-webkit-scrollbar-track': { backgroundColor: themePalette.pageBackground, borderRadius: '10px' },
+              '&::-webkit-scrollbar-thumb': { backgroundColor: themePalette.primaryLight, borderRadius: '10px' },
+              '&::-webkit-scrollbar-thumb:hover': { backgroundColor: themePalette.primaryDark },
               pb: '2px',
               pt: '4px',
             }}
@@ -200,15 +263,13 @@ export default function QuizNavigation({
                     minWidth: 36,
                     height: 36,
                     borderRadius: 1,
-                    backgroundColor: isSelected ? '#1976d2' : colors.bg,
-                    border: '1px solid #999',
+                    backgroundColor: isSelected ? themePalette.primaryDark : colors.bg,
+               
                     color: colors.text,
                     fontSize: 13,
                     fontWeight: 500,
                     position: 'relative',
-                    '&:hover': {
-                      backgroundColor: isSelected ? '#115293' : colors.hover,
-                    },
+                    '&:hover': { backgroundColor: isSelected ? themePalette.primaryDark : colors.hover },
                   }}
                 >
                   {numOrder}

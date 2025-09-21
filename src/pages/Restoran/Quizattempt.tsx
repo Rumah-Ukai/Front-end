@@ -12,10 +12,12 @@ import {
   TableRow,
   Button,
   useMediaQuery,
+ 
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+import { tokensSet } from '../../theme/tokens';
 
 interface Material {
   type: string;
@@ -55,6 +57,8 @@ interface QuestionRowFromServer {
   answer_key: string;
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+
 export default function Tryout() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -67,6 +71,7 @@ export default function Tryout() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState<number>(Date.now());
+  const [palette, setPalette] = useState(tokensSet.palette1);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -91,14 +96,30 @@ export default function Tryout() {
           return;
         }
 
+        // Ambil tema user dari DB terlebih dahulu (untuk styling)
+        try {
+          const userRes = await axios.get(`${API_BASE}/user`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const tema = userRes.data?.tema;
+          if (tema && tokensSet[tema as keyof typeof tokensSet]) {
+            setPalette(tokensSet[tema as keyof typeof tokensSet]);
+          }
+        } catch (err) {
+          // tidak fatal — tetap lanjut fetch tryout
+          // console.warn('Gagal ambil tema user', err);
+        }
+
+        // Ambil data tryout
         const tryoutRes = await axios.get<TryoutDetail>(
-          `http://localhost:3000/tryouts/${encodeURIComponent(tryoutId)}`,
+          `${API_BASE}/tryouts/${encodeURIComponent(tryoutId)}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setTryoutData(tryoutRes.data);
 
+        // Ambil attempts
         const attemptRes = await axios.get<Attempt[]>(
-          `http://localhost:3000/quizattempt/${encodeURIComponent(tryoutId)}`,
+          `${API_BASE}/quizattempt/${encodeURIComponent(tryoutId)}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setAttempts(Array.isArray(attemptRes.data) ? attemptRes.data : []);
@@ -139,7 +160,7 @@ export default function Tryout() {
       const token = localStorage.getItem('token');
       if (!token) return;
       const attemptRes = await axios.get<Attempt[]>(
-        `http://localhost:3000/quizattempt/${encodeURIComponent(tryoutId)}`,
+        `${API_BASE}/quizattempt/${encodeURIComponent(tryoutId)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setAttempts(Array.isArray(attemptRes.data) ? attemptRes.data : []);
@@ -159,7 +180,7 @@ export default function Tryout() {
       if (grade !== undefined) patchData.grade = grade;
 
       const patchRes = await axios.patch<Attempt>(
-        `http://localhost:3000/quizattempt/${encodeURIComponent(a.tryout_id)}/${encodeURIComponent(String(a.attempt_number))}`,
+        `${API_BASE}/quizattempt/${encodeURIComponent(a.tryout_id)}/${encodeURIComponent(String(a.attempt_number))}`,
         patchData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -192,7 +213,7 @@ export default function Tryout() {
       }
 
       const postRes = await axios.post<Attempt>(
-        'http://localhost:3000/quizattempt/start',
+        `${API_BASE}/quizattempt/start`,
         { tryout_id: tryoutData.id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -205,6 +226,7 @@ export default function Tryout() {
       setLoading(false);
       void fetchAttempts();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempts, fetchAttempts, navigate, tryoutData, tryoutId]);
 
   const handleContinueAttempt = (a: Attempt) => {
@@ -231,7 +253,7 @@ export default function Tryout() {
         .map(s => s.trim());
 
       const qRes = await axios.get<QuestionRowFromServer[]>(
-        `http://localhost:3000/questions?tryoutId=${encodeURIComponent(a.tryout_id)}`,
+        `${API_BASE}/questions?tryoutId=${encodeURIComponent(a.tryout_id)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const allQuestions = Array.isArray(qRes.data) ? qRes.data : [];
@@ -291,8 +313,9 @@ export default function Tryout() {
     navigate(`/review?tryoutId=${a.tryout_id}&attempt=${a.attempt_number}`);
   };
 
-  const startDisabled = attempts.some(a => a.status === 'ongoing' && getRemainingSeconds(a) > 0)
-    || (attempts.length >= (tryoutData?.attemptsAllowed ?? 3)); // disable if reach max attempts
+  const startDisabled =
+    attempts.some(a => a.status === 'ongoing' && getRemainingSeconds(a) > 0) ||
+    (attempts.length >= (tryoutData?.attemptsAllowed ?? 3));
 
   const formatMinutesReadable = (mins?: number | null) => {
     if (typeof mins !== 'number' || Number.isNaN(mins) || mins === null) return 'N/A';
@@ -319,20 +342,20 @@ export default function Tryout() {
   if (!tryoutData) return <Typography>Tidak ada data tryout</Typography>;
 
   return (
-    <Stack spacing={4} sx={{ p: 2 }}>
-      <Typography variant="h4" sx={{ fontWeight: 'bold' }}>{tryoutData.name}</Typography>
-      <Typography variant="body2">{tryoutData.description}</Typography>
+    <Stack spacing={4} sx={{ p: 2, bgcolor: palette.primaryContrastText }}>
+      <Typography variant="h4" sx={{ fontWeight: 'bold', color: palette.btnSecondaryText }}>{tryoutData.name}</Typography>
+      <Typography variant="body2" sx={{ color: palette.btnSecondaryText, fontWeight:600 }}>{tryoutData.description}</Typography>
 
       <Stack spacing={1}>
-        <Typography><strong>Jumlah percobaan:</strong> {tryoutData.attemptsAllowed ?? 3}</Typography>
-        <Typography><strong>Batas waktu:</strong> {displayTimeLimit}</Typography>
-        <Typography><strong>Metode penilaian:</strong> {tryoutData.gradingMethod ?? 'Nilai tertinggi'}</Typography>
+        <Typography sx={{ color: palette.btnSecondaryText }}><strong>Jumlah percobaan:</strong> {tryoutData.attemptsAllowed ?? 3}</Typography>
+        <Typography sx={{ color: palette.btnSecondaryText }}><strong>Batas waktu:</strong> {displayTimeLimit}</Typography>
+        <Typography sx={{ color: palette.btnSecondaryText }}><strong>Metode penilaian:</strong> {tryoutData.gradingMethod ?? 'Nilai tertinggi'}</Typography>
       </Stack>
 
       {tryoutData.materials && tryoutData.materials.length > 0 && (
         <>
           <Divider />
-          <Typography variant="h5">Materials</Typography>
+          <Typography variant="h5" sx={{ color: palette.textPrimary }}>Materials</Typography>
           <Stack spacing={1}>
             {tryoutData.materials.map((m, idx) => (
               <Button
@@ -341,7 +364,12 @@ export default function Tryout() {
                 component="a"
                 href={m.url}
                 target="_blank"
-                sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
+                sx={{
+                  justifyContent: 'flex-start',
+                  textTransform: 'none',
+                  color: palette.textPrimary,
+                  borderColor: palette.textSecondary,
+                }}
               >
                 {m.title} ({m.type})
               </Button>
@@ -351,10 +379,10 @@ export default function Tryout() {
       )}
 
       <Divider />
-      <Typography variant="h5">Riwayat ujian</Typography>
+      <Typography variant="h5" sx={{ color: palette.btnSecondaryText }}>Riwayat ujian</Typography>
 
       {attempts.length === 0 ? (
-        <Typography sx={{ fontStyle: 'italic' }}>Tidak ada riwayat ujian</Typography>
+        <Typography sx={{ fontStyle: 'italic', color: palette.btnSecondaryText }}>Tidak ada riwayat ujian</Typography>
       ) : isMobile ? (
         <Stack spacing={2}>
           {[...attempts]
@@ -366,23 +394,48 @@ export default function Tryout() {
               const isFinished = ['finished', 'submitted', 'graded'].includes(a.status);
 
               return (
-                <Paper key={`${a.tryout_id}-${a.attempt_number}`} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                <Paper key={`${a.tryout_id}-${a.attempt_number}`} sx={{ p: 2, border: `1px solid ${palette.btnSecondaryText}`, borderRadius: 1, bgcolor: palette.primary }}>
                   <Stack spacing={1}>
-                    <Typography><strong>Attempt #{idx + 1}</strong></Typography>
-                    <Typography>
+                    <Typography sx={{ color: palette.primaryContrastText }}><strong>Ujian #{idx + 1}</strong></Typography>
+                    <Typography sx={{ color: palette.primaryContrastText }}>
                       Status:{' '}
-                      {isFinished ? 'Finished' : isExpiredOngoing ? 'Time expired' : `Ongoing — ${formatHMS(remainingSec)}`}
+                      {isFinished ? 'Selesai' : isExpiredOngoing ? 'Waktu habis' : `Berlangsung — ${formatHMS(remainingSec)}`}
                     </Typography>
-                    <Typography>Grade: {a.grade ?? '-'}</Typography>
+                    <Typography sx={{ color: palette.primaryContrastText }}>Nilai: {a.grade ?? '-'}</Typography>
                     <Stack direction="row" spacing={1}>
                       {a.status === 'ongoing' ? (
                         isActive ? (
-                          <Button size="small" variant="contained" onClick={() => handleContinueAttempt(a)}>Continue</Button>
+                      <Button
+  size="small"
+  variant="contained"
+  onClick={() => handleContinueAttempt(a)}
+  sx={{
+    backgroundColor: palette.info,
+    color: palette.primaryContrastText,
+    fontFamily: 'Poppins',
+    '&:hover': {
+      backgroundColor: palette.primaryDark, // ganti warna saat hover
+    },
+  }}
+>
+  Lanjutkan
+</Button>
+
                         ) : (
-                          <Button size="small" variant="contained" color="secondary" onClick={() => void handleGradeAttempt(a)}>Grade</Button>
+                          <Button size="small" variant="contained" onClick={() => void handleGradeAttempt(a)} sx={{ backgroundColor: palette.warning, color: palette.primaryContrastText,   fontFamily: 'Poppins',
+    '&:hover': {
+      backgroundColor: palette.warning, // ganti warna saat hover
+    }, }}>
+                            Nilai
+                          </Button>
                         )
                       ) : (
-                        <Button size="small" variant="outlined" onClick={() => handleReviewAttempt(a)}>Review</Button>
+                        <Button size="small" variant="contained" onClick={() => handleReviewAttempt(a)} sx={{ color: palette.btnSecondaryText, borderColor: palette.btnSecondaryText,backgroundColor: palette.primaryContrastText,   fontFamily: 'Poppins',
+    '&:hover': {
+      backgroundColor: palette.primaryContrastText, // ganti warna saat hover
+    }, }}>
+                          Tinjau ulang
+                        </Button>
                       )}
                     </Stack>
                   </Stack>
@@ -391,14 +444,14 @@ export default function Tryout() {
             })}
         </Stack>
       ) : (
-        <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+        <Paper elevation={0} sx={{ p: 2, border: `1px solid ${palette.textSecondary}`, borderRadius: 1, bgcolor: palette.primaryContrastText }}>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>No.</TableCell>
-                <TableCell>Status / Time Left</TableCell>
-                <TableCell>Grade</TableCell>
-                <TableCell>Action</TableCell>
+                <TableCell sx={{ color: palette.btnSecondaryText }}>No.</TableCell>
+                <TableCell sx={{ color: palette.btnSecondaryText }}>Status / Time Left</TableCell>
+                <TableCell sx={{ color: palette.btnSecondaryText }}>Grade</TableCell>
+                <TableCell sx={{ color: palette.btnSecondaryText }}>Action</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -412,22 +465,41 @@ export default function Tryout() {
 
                   return (
                     <TableRow key={`${a.tryout_id}-${a.attempt_number}`}>
-                      <TableCell>{idx + 1}</TableCell>
+                      <TableCell sx={{ color: palette.btnSecondaryText }}>{idx + 1}</TableCell>
                       <TableCell>
-                        {isFinished ? <Typography>Finished</Typography> :
-                        isExpiredOngoing ? <Typography color="warning.main">Time expired</Typography> :
-                        <Typography color="primary">Ongoing — {formatHMS(remainingSec)}</Typography>}
+                        {isFinished ? (
+                          <Typography sx={{ color: palette.btnSecondaryText }}>Finished</Typography>
+                        ) : isExpiredOngoing ? (
+                          <Typography sx={{ color: palette.warning }}>Time expired</Typography>
+                        ) : (
+                          <Typography sx={{ color: palette.info }}>Ongoing — {formatHMS(remainingSec)}</Typography>
+                        )}
                       </TableCell>
-                      <TableCell>{a.grade ?? '-'}</TableCell>
+                      <TableCell sx={{ color: palette.btnSecondaryText }}>{a.grade ?? '-'}</TableCell>
                       <TableCell>
                         {a.status === 'ongoing' ? (
                           isActive ? (
-                            <Button size="small" variant="contained" onClick={() => handleContinueAttempt(a)}>Continue</Button>
+                            <Button size="small" variant="contained" onClick={() => handleContinueAttempt(a)} sx={{ backgroundColor: palette.info, color: palette.primaryContrastText,  fontFamily: 'Poppins',
+    '&:hover': {
+      backgroundColor: palette.primaryDark, // ganti warna saat hover
+    },}}>
+                              Lanjutkan
+                            </Button>
                           ) : (
-                            <Button size="small" variant="contained" color="secondary" onClick={() => void handleGradeAttempt(a)}>Grade</Button>
+                            <Button size="small" variant="contained" onClick={() => void handleGradeAttempt(a)} sx={{ backgroundColor: palette.warning, color: palette.primaryContrastText,  fontFamily: 'Poppins',
+    '&:hover': {
+      backgroundColor: palette.warning, // ganti warna saat hover
+    },}}>
+                              Nilai
+                            </Button>
                           )
                         ) : (
-                          <Button size="small" variant="outlined" onClick={() => handleReviewAttempt(a)}>Review</Button>
+                          <Button size="small" variant="outlined" onClick={() => handleReviewAttempt(a)} sx={{ color: palette.btnSecondaryText, borderColor: palette.btnSecondaryText,  fontFamily: 'Poppins',
+    '&:hover': {
+      backgroundColor: palette.primaryContrastText, // ganti warna saat hover
+    }, }}>
+                            Tinjau ulang
+                          </Button>
                         )}
                       </TableCell>
                     </TableRow>
@@ -443,8 +515,9 @@ export default function Tryout() {
         onClick={() => void handleStartAttempt()}
         disabled={startDisabled}
         sx={{
-          backgroundColor: startDisabled ? '#bdbdbd' : undefined,
-          '&:hover': { backgroundColor: startDisabled ? '#bdbdbd' : undefined },
+          backgroundColor: startDisabled ? '#bdbdbd' : palette.primary,
+          color: startDisabled ? '#fff' : palette.primaryContrastText,
+          '&:hover': { backgroundColor: startDisabled ? '#bdbdbd' : palette.primaryDark, fontFamily:'Poppins' },
         }}
       >
         Start New Attempt

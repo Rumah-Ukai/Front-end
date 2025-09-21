@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 // src/pages/Quiz/Quiz.tsx
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -18,6 +19,9 @@ import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import QuestionForm, { Question as QCompQuestion } from '../../components/beranda/soal';
 import QuizNavigation from '../../components/beranda/soalnav';
+import { tokensSet } from '../../theme/tokens';
+
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
 // di dalam komponen Quiz
 
@@ -96,6 +100,9 @@ export default function Quiz(): JSX.Element {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // theme palette from DB (tokens)
+  const [themePalette, setThemePalette] = useState(tokensSet.palette1);
+
   // states untuk konfirmasi submit
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [unansweredCount, setUnansweredCount] = useState<number>(0);
@@ -146,7 +153,38 @@ export default function Quiz(): JSX.Element {
     return { answersMap, flaggedIds };
   };
 
+  // ambil tema user dari DB supaya bisa dipakai untuk styling lokal di halaman Quiz
   useEffect(() => {
+    const fetchTheme = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await axios.get(`${API_BASE}/user`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        // server /user returns user object; expect `tema` field (e.g. 'palette1')
+        if (res.data?.tema && typeof res.data.tema === 'string' && (res.data.tema as keyof typeof tokensSet) in tokensSet) {
+          setThemePalette(tokensSet[res.data.tema as keyof typeof tokensSet]);
+        }
+      } catch (err) {
+        // fail silently and keep default palette
+        // console.error('Failed to fetch user theme', err);
+      }
+    };
+    void fetchTheme();
+  }, []);
+ useEffect(() => {
+    const prevBodyBg = document.body.style.backgroundColor;
+    const prevHtmlBg = document.documentElement.style.backgroundColor;
+    document.body.style.backgroundColor = themePalette.primary;
+    document.documentElement.style.backgroundColor = themePalette.primary;
+    return () => {
+      document.body.style.backgroundColor = prevBodyBg;
+      document.documentElement.style.backgroundColor = prevHtmlBg;
+    };
+  }, [themePalette.surface]);
+  useEffect(() => {
+    
     let mounted = true;
     const load = async (): Promise<void> => {
       setLoading(true);
@@ -157,7 +195,7 @@ export default function Quiz(): JSX.Element {
         if (!tryoutId) throw new Error('tryoutId tidak diberikan (query string atau state).');
 
         const qRes = await axios.get<ServerQuestion[]>(
-          `http://localhost:3000/questions?tryoutId=${encodeURIComponent(tryoutId)}`,
+          `${API_BASE}/questions?tryoutId=${encodeURIComponent(tryoutId)}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -187,7 +225,7 @@ export default function Quiz(): JSX.Element {
 
         if (!attemptNumberState) {
           const startRes = await axios.post(
-            `http://localhost:3000/quizattempt/start`,
+            `${API_BASE}/quizattempt/start`,
             { tryout_id: tryoutId },
             { headers: { Authorization: `Bearer ${token}` } }
           );
@@ -197,7 +235,7 @@ export default function Quiz(): JSX.Element {
           setAttemptNumberState(attemptData.attempt_number);
         } else {
           const aRes = await axios.get<QuizAttemptFromServer>(
-            `http://localhost:3000/quizattempt/${encodeURIComponent(tryoutId)}/${encodeURIComponent(String(attemptNumberState))}`,
+            `${API_BASE}/quizattempt/${encodeURIComponent(tryoutId)}/${encodeURIComponent(String(attemptNumberState))}`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
           attemptData = aRes.data as QuizAttemptFromServer;
@@ -248,7 +286,7 @@ export default function Quiz(): JSX.Element {
     };
     void load();
     return () => { mounted = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tryoutId, attemptNumberState, navigate]);
 
   const handleAnswerChange = async (questionId: number, answerId: string): Promise<void> => {
@@ -275,7 +313,7 @@ export default function Quiz(): JSX.Element {
 
     try {
       const res = await axios.patch(
-        `http://localhost:3000/quizattempt/${encodeURIComponent(currentAttempt.tryout_id)}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
+        `${API_BASE}/quizattempt/${encodeURIComponent(currentAttempt.tryout_id)}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
         { answer_order: updatedAnswerOrder },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -313,7 +351,7 @@ export default function Quiz(): JSX.Element {
       if (!token || !currentAttempt) return;
       const patchBody = { answer_order: optimisticAnsArr ? optimisticAnsArr.join(',') : currentAttempt.answer_order };
       const res = await axios.patch(
-        `http://localhost:3000/quizattempt/${encodeURIComponent(currentAttempt.tryout_id)}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
+        `${API_BASE}/quizattempt/${encodeURIComponent(currentAttempt.tryout_id)}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
         patchBody,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -372,9 +410,7 @@ export default function Quiz(): JSX.Element {
       };
 
       const res = await axios.patch(
-        `http://localhost:3000/quizattempt/${encodeURIComponent(
-          currentAttempt.tryout_id
-        )}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
+        `${API_BASE}/quizattempt/${encodeURIComponent(currentAttempt.tryout_id)}/${encodeURIComponent(String(currentAttempt.attempt_number))}`,
         body,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -495,7 +531,7 @@ export default function Quiz(): JSX.Element {
   game: {
     0: 'Level 1 unlocked, siap berpetualang!',
     20: 'XP +20%, karakter makin kuat!',
-    40: 'Setengah stage clear, power up! ⚡',
+    40: 'Setengah stage clear, power up!',
     60: 'Boss stage sebentar lagi!',
     80: 'Final battle tinggal sedikit lagi!',
     100: 'Victory Royale! 🏆',
@@ -573,28 +609,28 @@ export default function Quiz(): JSX.Element {
     100: 'No one saves us but ourselves. We ourselves must walk the path. — Buddha',
   },
     survivor_puncak: {
-    0: 'Hidup itu seperti gunung: berat didaki, tapi pemandangannya luar biasa saat sampai puncak.',  // “Life is like a mountain. Hard to climb, but once you get to the top, the view is beautiful.” :contentReference[oaicite:1]{index=1}
-  20: 'Semakin tinggi kau mendaki, semakin kecil masalah yang kau lihat.',  // “The higher you climb on the mountain, the harder the wind blows.” :contentReference[oaicite:2]{index=2}
-  40: 'Tak perlu mendaki hanya untuk menanam bendera, tapi untuk merasakan tantangannya.',  // “Climb the mountain not to plant your flag, but to embrace the challenge, enjoy the air and behold the view.” :contentReference[oaicite:3]{index=3}
-  60: 'Semua kebahagiaan dan pertumbuhan terjadi saat kau menaiki jalannya, bukan hanya di puncak.',  // “Everyone wants to live on top of the mountain, but all the happiness and growth occurs while you are climbing it.” :contentReference[oaicite:4]{index=4}
-  80: 'Tak ada gunung yang terlalu tinggi bila semangatmu juga besar.',  // gabungan inspirasi dari beberapa quotes mountain :contentReference[oaicite:5]{index=5}
-  100: 'Puncak bukan tujuan semata, tapi bukti bahwa kau mampu melewati setiap tanjakan.',  // inspirasi dari quotes mountain :contentReference[oaicite:6]{index=6}
+    0: 'Hidup itu seperti gunung: berat didaki, tapi pemandangannya luar biasa saat sampai puncak.',
+  20: 'Semakin tinggi kau mendaki, semakin kecil masalah yang kau lihat.',
+  40: 'Tak perlu mendaki hanya untuk menanam bendera, tapi untuk merasakan tantangannya.',
+  60: 'Semua kebahagiaan dan pertumbuhan terjadi saat kau menaiki jalannya, bukan hanya di puncak.',
+  80: 'Tak ada gunung yang terlalu tinggi bila semangatmu juga besar.',
+  100: 'Puncak bukan tujuan semata, tapi bukti bahwa kau mampu melewati setiap tanjakan.',
   },
     heroik_lotr: {
-     0: 'I can do this all day.',  // “I can do this all day.” :contentReference[oaicite:8]{index=8}
-  20: 'The hardest choices require the strongest wills.',  // “The hardest choices require the strongest wills.” :contentReference[oaicite:9]{index=9}
-  40: 'It’s not enough to be against something. You have to be for something better.',  // :contentReference[oaicite:10]{index=10}
-  60: 'No man can win every battle, but no man should fall without a struggle.',  // :contentReference[oaicite:11]{index=11}
-  80: 'Part of the journey is the end.',  // :contentReference[oaicite:12]{index=12}
-  100: 'It’s not about how much we lost. It’s about how much we have left.',  // :contentReference[oaicite:13]{index=13}
+     0: 'I can do this all day.',
+  20: 'The hardest choices require the strongest wills.',
+  40: 'It’s not enough to be against something. You have to be for something better.',
+  60: 'No man can win every battle, but no man should fall without a struggle.',
+  80: 'Part of the journey is the end.',
+  100: 'It’s not about how much we lost. It’s about how much we have left.',
   },
   game_quote: {
     0: 'It’s dangerous to go alone! Take this.',
-  20: 'Stay awhile and listen!',                                 // mendorong untuk terus memperhatikan tugas
-  40: 'The cake is a lie.',                                          // bikin penasaran, jangan sampai tertipu kesalahan
-  60: 'Do a barrel roll!',                                      // menyemangati untuk bergerak mengikuti instruksi
-  80: 'Endure and survive.',                                 // hampir selesai, tahan dulu, terus bertahan
-  100: 'FINISH HIM!'                                           // selesai, berikan “serangan akhir” motivasi
+  20: 'Stay awhile and listen!',
+  40: 'The cake is a lie.',
+  60: 'Do a barrel roll!',
+  80: 'Endure and survive.',
+  100: 'FINISH HIM!'
 },
   };
 
@@ -641,7 +677,7 @@ export default function Quiz(): JSX.Element {
         sx={{
           paddingX: '20px',
           mx: 'auto',
-          mt: 4,
+          pt: 4,
           pr: {
             xs: '20px',
             sm: '360px',
@@ -649,6 +685,7 @@ export default function Quiz(): JSX.Element {
             lg: '520px',
             xl: '540px',
           },
+          bgcolor:themePalette.primary
         }}
         alignItems="stretch"
       >
@@ -715,7 +752,11 @@ export default function Quiz(): JSX.Element {
                 <Button
                   variant="contained"
                   size="large"
-                  color="primary"
+                  sx={{
+                    backgroundColor: themePalette.primary,
+                    color: themePalette.primaryContrastText,
+                    '&:hover': { backgroundColor: themePalette.primaryDark },
+                  }}
                   onClick={openFinalizeConfirmation}
                 >
                   Submit
@@ -738,32 +779,39 @@ export default function Quiz(): JSX.Element {
                 />
                 <Stack direction="row" spacing={2} justifyContent="space-between">
                   <Button
-                    variant="outlined"
+                    variant="contained"
                     onClick={goToPreviousQuestion}
                     disabled={questions.findIndex(q => q.id === selectedQuestionId) <= 0}
-                    sx={{fontSize:'10px'}}
-                  >
+                 sx={{fontSize:'10px', borderColor: themePalette.primary, color: themePalette.primaryContrastText, bgcolor:themePalette.primaryLight,
+                       '&:hover': { backgroundColor: themePalette.primaryDark },
+                    }}>
                     Sebelumnya
                   </Button>
                   {questions.findIndex(q => q.id === selectedQuestionId) === questions.length - 1 && (
                     <Button
                       variant="contained"
                       size="large"
-                      color="primary"
                       onClick={openFinalizeConfirmation}
-                      sx={{fontSize:'12px'}}
+                      sx={{
+                        fontSize:'12px',
+                        backgroundColor: themePalette.primaryLight,
+                        color: themePalette.primaryContrastText,
+                        '&:hover': { backgroundColor: themePalette.primaryDark },
+                      }}
                     >
                       Submit
                     </Button>
                   )}
                   <Button
-                    variant="outlined"
+                    variant="contained"
                     onClick={goToNextQuestion}
                     disabled={(() => {
                       const idx = questions.findIndex(q => q.id === selectedQuestionId);
                       return idx === -1 || idx === questions.length - 1;
                     })()}
-                    sx={{fontSize:'10px'}}
+                    sx={{fontSize:'10px', borderColor: themePalette.primary, color: themePalette.primaryContrastText, bgcolor:themePalette.primaryLight,
+                       '&:hover': { backgroundColor: themePalette.primaryDark },
+                    }}
                   >
                     Selanjutnya
                   </Button>
@@ -831,7 +879,7 @@ export default function Quiz(): JSX.Element {
             bottom: 0,
             left: 0,
             width: '100%',
-            bgcolor: '#f5f5f5',
+            bgcolor: themePalette.primary,
             p: 1,
             zIndex: 20,
           }}
@@ -839,7 +887,7 @@ export default function Quiz(): JSX.Element {
           <Typography
             variant="body2"
             align="center"
-            sx={{ mb: 0.5, fontWeight: 'bold' }}
+            sx={{ mb: 0.5, fontWeight: 'bold', color: themePalette.btnSecondaryText }}
           >
             {currentMessage}
           </Typography>
@@ -849,13 +897,13 @@ export default function Quiz(): JSX.Element {
             sx={{
               height: 10,
               borderRadius: 5,
-              bgcolor: '#ddd',
+              bgcolor: themePalette.surface,
               '& .MuiLinearProgress-bar': {
-                bgcolor: '#757575',
+                bgcolor: themePalette.primaryDark,
               },
             }}
           />
-          <Typography variant="caption" align="center" display="block" sx={{ mt: 0.5 }}>
+          <Typography variant="caption" align="center" display="block" sx={{ mt: 0.5, color: themePalette.textSecondary }}>
             {`${Math.round(progressPercent)}% terjawab`}
           </Typography>
         </Box>
@@ -863,36 +911,54 @@ export default function Quiz(): JSX.Element {
 
       {/* Dialog konfirmasi finalisasi */}
       <Dialog
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        aria-labelledby="confirm-finalize-dialog"
-      >
-        <DialogTitle id="confirm-finalize-dialog">Konfirmasi Penyelesaian Ujian</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {unansweredCount === 0 ? (
-              <>
-                Kamu telah menjawab semua pertanyaan. Apakah kamu yakin ingin menyelesaikan ujian dan melakukan finalisasi?
-              </>
-            ) : (
-              <>
-                Terdapat <strong>{unansweredCount}</strong> soal yang belum terjawab. Jika kamu melanjutkan, soal tersebut akan dianggap belum terjawab. Apakah kamu yakin ingin menyelesaikan ujian?
-              </>
-            )}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)} disabled={isFinalizing}>Batal</Button>
-          <Button
-            onClick={() => { void confirmFinalize(); }}
-            variant="contained"
-            color="primary"
-            disabled={isFinalizing}
-          >
-            {isFinalizing ? 'Memproses...' : 'Ya, lanjutkan'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+  open={confirmOpen}
+  onClose={() => setConfirmOpen(false)}
+  aria-labelledby="confirm-finalize-dialog"
+  PaperProps={{
+    elevation: 12, // lebih tinggi untuk efek “terangkat”
+  
+  }}
+>
+  <DialogTitle
+    id="confirm-finalize-dialog"
+    sx={{
+      backgroundColor: themePalette.surface,
+      color: themePalette.primaryDark,
+      fontWeight: 'bold',
+    }}
+  >
+    Konfirmasi Penyelesaian Ujian
+  </DialogTitle>
+  <DialogContent sx={{ backgroundColor: themePalette.surface }}>
+    <DialogContentText sx={{ color: themePalette.textPrimary }}>
+      {unansweredCount === 0 ? (
+        <>Kamu telah menjawab semua pertanyaan. Apakah kamu yakin ingin menyelesaikan ujian dan melakukan finalisasi?</>
+      ) : (
+        <>
+          Terdapat <strong>{unansweredCount}</strong> soal yang belum terjawab. Jika kamu melanjutkan, soal tersebut akan dianggap belum terjawab. Apakah kamu yakin ingin menyelesaikan ujian?
+        </>
+      )}
+    </DialogContentText>
+  </DialogContent>
+  <DialogActions sx={{ backgroundColor: themePalette.surface }}>
+    <Button onClick={() => setConfirmOpen(false)} disabled={isFinalizing} sx={{ color: themePalette.textPrimary }}>
+      Batal
+    </Button>
+    <Button
+      onClick={() => { void confirmFinalize(); }}
+      variant="contained"
+      disabled={isFinalizing}
+      sx={{
+        backgroundColor: themePalette.primary,
+        color: themePalette.primaryContrastText,
+        '&:hover': { backgroundColor: themePalette.primaryDark },
+      }}
+    >
+      {isFinalizing ? 'Memproses...' : 'Ya, lanjutkan'}
+    </Button>
+  </DialogActions>
+</Dialog>
+
     </>
   );
 }

@@ -10,6 +10,7 @@ import {
   Pagination,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { tokensSet } from '../../theme/tokens';
 
 // ================== SHAPE ==================
 interface Shape {
@@ -29,19 +30,13 @@ const GlobalShapes: Shape[] = Array.from({ length: 10 }).map((_, i) => {
   };
 });
 
-// ================== SHAPE CARD ==================
+// ================== PACKAGE CARD ==================
 interface PackageCardProps {
   title: string;
+  palette: typeof tokensSet.palette1;
 }
-interface UserPaket {
-  id: string;
-  name: string;
-  price: number;
-  created_at: string;
-  image?: string | null;
-  closed_at?: string | null; // ✅ kolom baru
-}
-function PackageCard({ title }: PackageCardProps) {
+
+function PackageCard({ title, palette }: PackageCardProps) {
   const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -53,13 +48,13 @@ function PackageCard({ title }: PackageCardProps) {
   }, []);
 
   const colors = [
-    '#E74C3C',
-    '#3498DB',
-    '#2ECC71',
-    '#9B59B6',
-    '#F39C12',
-    '#1ABC9C',
-    '#34495E',
+  '#E74C3C',
+  '#3498DB',
+  '#2ECC71',
+  '#9B59B6',
+  '#F39C12',
+  '#1ABC9C',
+  '#34495E',
   ];
   const bgColor = colors[Math.floor(Math.random() * colors.length)];
 
@@ -92,8 +87,8 @@ function PackageCard({ title }: PackageCardProps) {
               style={{
                 ...baseStyle,
                 borderRadius: '50%',
-                border: isFilled ? 'none' : '3px solid white',
-                background: isFilled ? 'white' : 'inherit',
+                border: isFilled ? 'none' : `3px solid ${palette.textPrimary}`,
+                background: isFilled ? palette.textPrimary : 'inherit',
               }}
             />
           );
@@ -102,8 +97,8 @@ function PackageCard({ title }: PackageCardProps) {
             <div
               style={{
                 ...baseStyle,
-                border: isFilled ? 'none' : '3px solid white',
-                background: isFilled ? 'white' : 'inherit',
+                border: isFilled ? 'none' : `3px solid ${palette.textPrimary}`,
+                background: isFilled ? palette.textPrimary : 'inherit',
               }}
             />
           );
@@ -116,7 +111,7 @@ function PackageCard({ title }: PackageCardProps) {
                 height: 0,
                 borderLeft: `${s.size / 2}px solid transparent`,
                 borderRight: `${s.size / 2}px solid transparent`,
-                borderBottom: `${s.size}px solid white`,
+                borderBottom: `${s.size}px solid ${palette.textPrimary}`,
                 background: 'inherit',
               }}
             />
@@ -173,16 +168,45 @@ function PackageCard({ title }: PackageCardProps) {
 }
 
 // ================== GRID UTAMA ==================
+interface UserPaket {
+  id: string;
+  name: string;
+  price: number;
+  created_at: string;
+  image?: string | null;
+  closed_at?: string | null;
+}
+
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+
 export default function PaketGrid() {
   const navigate = useNavigate();
+  const [palette, setPalette] = useState(tokensSet.palette1);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
   const [userPakets, setUserPakets] = useState<UserPaket[]>([]);
 
   useEffect(() => {
+    const fetchUserTheme = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const res = await fetch(`${API_BASE}/user`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+          if (data.tema && typeof data.tema === 'string' && data.tema in tokensSet) {
+            setPalette(tokensSet[data.tema as keyof typeof tokensSet]);
+          }
+        } catch (error) {
+          console.error('Error fetching user theme:', error);
+        }
+      }
+    };
+
     const fetchUserPakets = async () => {
       try {
-        const response = await fetch('http://localhost:3000/user-pakets', {
+        const response = await fetch(`${API_BASE}/user-pakets`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
           },
@@ -194,6 +218,7 @@ export default function PaketGrid() {
       }
     };
 
+    fetchUserTheme();
     fetchUserPakets();
   }, []);
 
@@ -211,11 +236,8 @@ export default function PaketGrid() {
     setCurrentPage(page);
   };
 
-  const formatPrice = (price: number) => {
-    return Number(price).toLocaleString('id-ID');
-  };
+  const formatPrice = (price: number) => Number(price).toLocaleString('id-ID');
 
-  // ✅ Format tanggal ke Indonesia
   const formatDateIndo = (dateStr: string) => {
     const date = new Date(dateStr);
     return new Intl.DateTimeFormat('id-ID', {
@@ -225,87 +247,50 @@ export default function PaketGrid() {
     }).format(date);
   };
 
-  // ✅ Check apakah sudah expired
-  const isExpired = (closed_at: string) => {
-    return new Date(closed_at) < new Date();
-  };
+  const isExpired = (closed_at: string) => new Date(closed_at) < new Date();
 
   return (
-    <Stack
-      justifyContent={'space-between'}
-      alignItems={'center'}
-      minHeight={'600px'}
-      sx={{ width: '100%', alignItems: 'flex-start' }}
-    >
-      <Grid container spacing={{ xs: 0, lg: 0, sm: 0 }} sx={{ width: '100%' }}>
+    <Stack sx={{ width: '100%', alignItems: 'flex-start', justifyContent: 'space-between', minHeight: '600px' }}>
+      <Grid container spacing={{ xs: 0, sm: 2, md: 3 }} sx={{ width: '100%' }}>
         {currentItems.map((item) => {
           const expired = item.closed_at ? isExpired(item.closed_at) : false;
           return (
-            <Grid
-              item
-              key={item.id}
-              pb={{ xs: '24px' }}
-              pl={{ xs: '24px' }}
-              pr={{ xs: '24px' }}
-              xs={12}
-              sm={6}
-              md={4}
-            >
+            <Grid item key={item.id} xs={12} sm={6} md={4} pb={3}>
               <Card
                 sx={{
+                  bgcolor: palette.primary,
                   borderRadius: 3,
                   cursor: expired ? 'not-allowed' : 'pointer',
-                  opacity: expired ? 0.7 : 1,
+                  opacity: expired ? 0.8 : 1,
                   transition: 'transform 0.3s ease, box-shadow 0.3s ease',
                   '&:hover': expired
                     ? {}
-                    : {
-                        transform: 'scale(1.03)',
-                        boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
-                      },
+                    : { transform: 'scale(1.03)', boxShadow: '0 8px 20px rgba(0,0,0,0.25)' },
                 }}
                 onClick={() => handleItemClick(item.id, expired)}
               >
                 {item.image ? (
-                  <CardMedia
-                    component="img"
-                    height="140"
-                    image={item.image}
-                    alt={item.name}
-                  />
+                  <CardMedia component="img" height="140" image={item.image} alt={item.name} />
                 ) : (
-                  <PackageCard title={item.name} />
+                  <PackageCard title={item.name} palette={palette} />
                 )}
 
                 <CardContent>
-                  <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: palette.primaryContrastText }}>
                     {item.name}
                   </Typography>
-
                   {item.closed_at ? (
                     expired ? (
-                      <Typography
-                        variant="body1"
-                        color="error"
-                        sx={{ fontWeight: 600, marginTop: 1 }}
-                      >
+                      <Typography variant="body1" color="error" sx={{ fontWeight: 600, mt: 1,color: palette.error  }}>
                         Expired: {formatDateIndo(item.closed_at)}
                       </Typography>
                     ) : (
-                      <Typography
-                        variant="body1"
-                        color="warning.main"
-                        sx={{ fontWeight: 600, marginTop: 1 }}
-                      >
+                      <Typography variant="body1" color="warning.main" sx={{ fontWeight: 600, mt: 1, color: palette.warning }}>
                         Tutup: {formatDateIndo(item.closed_at)}
                       </Typography>
                     )
                   ) : (
-                    <Typography
-                      variant="h6"
-                      color="primary"
-                      sx={{ fontWeight: 700, marginTop: 1 }}
-                    >
+                    <Typography variant="h6" sx={{ fontWeight: 700, mt: 1, color: palette.primary }}>
                       Rp. {formatPrice(item.price)}
                     </Typography>
                   )}
@@ -321,22 +306,18 @@ export default function PaketGrid() {
           count={totalPages}
           page={currentPage}
           onChange={handlePageChange}
-          color="primary"
           size="large"
           sx={{
-            width: '100%',
-            justifyContent: 'center',
-            display: 'flex',
-            alignItems: 'center',
+            mt: 4,
+            alignSelf: 'center',
             '& .MuiPaginationItem-root': {
-              color: 'black',
-              fontSize: { xs: '14px', sm: '16px' },
+              color: palette.textPrimary,
               '&.Mui-selected': {
-                backgroundColor: '#E74C3C',
-                color: 'white',
-                '&:hover': {
-                  backgroundColor: '#C0392B',
-                },
+                backgroundColor: palette.primary,
+                color: palette.primaryContrastText,
+              },
+              '&:hover': {
+                backgroundColor: palette.primary + '33',
               },
             },
           }}

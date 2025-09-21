@@ -1,3 +1,4 @@
+// src/components/QuizNavigation.tsx
 import { useEffect, useState } from 'react';
 import {
   Stack,
@@ -13,6 +14,8 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import axios from 'axios';
+import { tokensSet } from '../../theme/tokens';
 
 interface QuizNavigationProps {
   totalQuestions: number;
@@ -28,6 +31,12 @@ interface QuizNavigationProps {
   onTimeUp: () => void;
   onFontSizeChange: (size: 'small' | 'normal' | 'large') => void;
 }
+
+interface ThemeFromDB {
+  palette: keyof typeof tokensSet;
+}
+
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
 export default function QuizNavigation({
   totalQuestions,
@@ -45,11 +54,11 @@ export default function QuizNavigation({
   const [expanded, setExpanded] = useState<boolean>(true);
   const [timeLeft, setTimeLeft] = useState<number>(durationMinutes * 60);
   const [fontSize, setFontSize] = useState<'small' | 'normal' | 'large'>('normal');
+  const [themePalette, setThemePalette] = useState(tokensSet.palette1);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // ✅ custom hook untuk windowHeight
   const [windowHeight, setWindowHeight] = useState<number>(window.innerHeight);
   useEffect(() => {
     const onResize = () => setWindowHeight(window.innerHeight);
@@ -57,7 +66,28 @@ export default function QuizNavigation({
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // countdown
+  // Ambil tema dari DB
+  useEffect(() => {
+    const fetchTheme = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const res = await axios.get<ThemeFromDB>(`${API_BASE}/user/theme`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.data?.palette && tokensSet[res.data.palette]) {
+          setThemePalette(tokensSet[res.data.palette]);
+        }
+      } catch (err) {
+        console.error('Gagal ambil tema', err);
+      }
+    };
+
+    void fetchTheme();
+  }, []);
+
   useEffect(() => {
     const start = new Date(startTime).getTime();
     const totalSeconds = durationMinutes * 60;
@@ -90,18 +120,18 @@ export default function QuizNavigation({
     onFontSizeChange(size);
   };
 
-  // ✅ tinggi maksimal grid
   const gridMaxHeight = isMobile ? 260 : windowHeight - 250;
 
   return (
-    <Card sx={{ boxShadow: 3, borderRadius: 2, width: '100%' }}>
+    <Card sx={{ boxShadow: 3, borderRadius: 2, width: '100%', bgcolor: themePalette.primaryContrastText }}>
       {/* Header */}
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          backgroundColor: '#1976d2',
+          backgroundColor: themePalette.primaryDark,
+          borderColor: themePalette.primary,
           px: 1,
           py: 0.5,
           minHeight: 44,
@@ -110,7 +140,7 @@ export default function QuizNavigation({
         <Typography
           variant="subtitle2"
           sx={{
-            color: timeLeft < 60 ? 'error.main' : 'common.white',
+            color: timeLeft < 60 ? themePalette.error : themePalette.primaryContrastText,
             fontWeight: 700,
             letterSpacing: 0.3,
             fontSize: '17px',
@@ -126,7 +156,7 @@ export default function QuizNavigation({
               aria-label="expand"
               onClick={() => setExpanded((e) => !e)}
               sx={{
-                color: 'common.white',
+                color: themePalette.primaryContrastText,
                 transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
                 transition: '0.25s',
                 '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
@@ -138,10 +168,8 @@ export default function QuizNavigation({
         </Box>
       </Box>
 
-      {/* Collapsible content */}
       <Collapse in={expanded} timeout="auto" unmountOnExit>
         <CardContent sx={{ pt: 1, pb: 1 }}>
-          {/* Controls */}
           <Stack
             direction="row"
             spacing={1}
@@ -151,14 +179,25 @@ export default function QuizNavigation({
             display={'flex'}
           >
             <Tooltip title={showAll ? 'Fokus ke satu soal' : 'Perlihatkan semua soal'} arrow>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={onToggleShowAll}
-                sx={{ flexGrow: 1, minWidth: 'auto' }}
-              >
-                {showAll ? 'Semua soal' : 'Lihat 1 soal'}
-              </Button>
+            <Button
+  size="small"
+  variant="contained"
+  onClick={onToggleShowAll}
+  sx={{
+    flexGrow: 1,
+    minWidth: 'auto',
+    bgcolor: themePalette.primaryDark,
+    borderColor: themePalette.primaryDark,
+    color: themePalette.primaryContrastText,
+    '&:hover': {
+      bgcolor: themePalette.primaryLight, // warna saat hover
+      borderColor: themePalette.primaryLight,
+    },
+  }}
+>
+  {showAll ? 'Semua soal' : 'Lihat 1 soal'}
+</Button>
+
             </Tooltip>
 
             <Tooltip title={'Ubah ukuran huruf'} arrow>
@@ -166,7 +205,18 @@ export default function QuizNavigation({
                 size="small"
                 variant={fontSize === 'small' ? 'contained' : 'outlined'}
                 onClick={() => handleFontSize('small')}
-                sx={{ flexGrow: 1, minWidth: 'auto', fontSize:'14px'  }}
+                sx={{
+                  flexGrow: 1,
+                  minWidth: 'auto',
+                  fontSize: '14px',
+                  backgroundColor: fontSize === 'small' ? themePalette.primaryDark : themePalette.primaryLight,
+                  color: fontSize === 'small' ? themePalette.primaryContrastText : themePalette.textPrimary,
+                  borderColor: themePalette.primaryLight,
+                  '&:hover': {
+      bgcolor: themePalette.primaryDark, // warna saat hover
+      borderColor: themePalette.primaryDark,
+    },
+                }}
               >
                 A-
               </Button>
@@ -177,7 +227,18 @@ export default function QuizNavigation({
                 size="small"
                 variant={fontSize === 'normal' ? 'contained' : 'outlined'}
                 onClick={() => handleFontSize('normal')}
-                sx={{ flexGrow: 1, minWidth: 'auto', fontSize:'16px' }}
+                sx={{
+                  flexGrow: 1,
+                  minWidth: 'auto',
+                  fontSize: '16px',
+                  backgroundColor: fontSize === 'normal' ?  themePalette.primaryDark : themePalette.primaryLight,
+                  color: fontSize === 'normal' ? themePalette.primaryContrastText : themePalette.textPrimary,
+                 borderColor: themePalette.primaryLight,
+                  '&:hover': {
+      bgcolor: themePalette.primaryDark, // warna saat hover
+      borderColor: themePalette.primaryDark,
+    },
+                }}
               >
                 A
               </Button>
@@ -188,14 +249,24 @@ export default function QuizNavigation({
                 size="small"
                 variant={fontSize === 'large' ? 'contained' : 'outlined'}
                 onClick={() => handleFontSize('large')}
-                sx={{ flexGrow: 1, minWidth: 'auto', fontSize:'18px'  }}
+                sx={{
+                  flexGrow: 1,
+                  minWidth: 'auto',
+                  fontSize: '18px',
+                  backgroundColor: fontSize === 'large' ?  themePalette.primaryDark : themePalette.primaryLight,
+                  color: fontSize === 'large' ? themePalette.primaryContrastText : themePalette.textPrimary,
+                 borderColor: themePalette.primaryLight,
+                  '&:hover': {
+      bgcolor: themePalette.primaryDark, // warna saat hover
+      borderColor: themePalette.primaryDark,
+    },
+                }}
               >
                 A+
               </Button>
             </Tooltip>
           </Stack>
 
-          {/* Grid nomor soal */}
           <Box
             display="grid"
             gridTemplateColumns={{
@@ -211,14 +282,14 @@ export default function QuizNavigation({
               pr: 1,
               '&::-webkit-scrollbar': { width: '8px' },
               '&::-webkit-scrollbar-track': {
-                backgroundColor: '#f0f0f0',
+                backgroundColor: themePalette.primary,
                 borderRadius: '10px',
               },
               '&::-webkit-scrollbar-thumb': {
-                backgroundColor: '#bbb',
+                backgroundColor: themePalette.primaryLight,
                 borderRadius: '10px',
               },
-              '&::-webkit-scrollbar-thumb:hover': { backgroundColor: '#999' },
+              '&::-webkit-scrollbar-thumb:hover': { backgroundColor: themePalette.primaryDark},
               pb: '2px',
               pt: '4px',
             }}
@@ -238,21 +309,21 @@ export default function QuizNavigation({
                     height: 36,
                     borderRadius: 1,
                     backgroundColor: isSelected
-                      ? '#1976d2'
+                      ? themePalette.primaryDark
                       : isAnswered
-                      ? '#2e7d32'
-                      : '#ffffff',
-                    border: '1px solid #999',
-                    color: isSelected || isAnswered ? '#fff' : '#000',
+                      ? themePalette.primaryLight
+                      : themePalette.primary,
+              
+                    color: isSelected || isAnswered ? themePalette.primaryContrastText : themePalette.textPrimary,
                     fontSize: 13,
                     fontWeight: 500,
                     position: 'relative',
                     '&:hover': {
                       backgroundColor: isSelected
-                        ? '#115293'
+                        ? themePalette.primaryDark
                         : isAnswered
-                        ? '#1b5e20'
-                        : '#f0f0f0',
+                        ? themePalette.primaryLight
+                        : themePalette.primaryDark,
                     },
                     ...(flagged && {
                       '&::after': {
@@ -262,7 +333,7 @@ export default function QuizNavigation({
                         left: 0,
                         width: '100%',
                         height: '20%',
-                        backgroundColor: '#d32f2f',
+                        backgroundColor: themePalette.error,
                         borderTopLeftRadius: '4px',
                         borderTopRightRadius: '4px',
                       },

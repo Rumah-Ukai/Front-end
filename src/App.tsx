@@ -38,22 +38,14 @@ import { ProfileLupaVerifikasi } from './pages/profile/Lupapassword/Lupaverifika
 import { Quizreview } from './pages/About';
 // import { Flores } from './pages/About/flores';
 import { Paketku } from './pages/Beranda/Paketku';
-// import { Kupang } from './pages/About/kupang';
-// import { Mataram } from './pages/About/mataram';
+
 import {Oleh} from './pages/Oleh';
 import {OlehBali} from './pages/Oleh/list';
 import {Paket} from './pages/Paket';
-// import {Tryout} from './pages/Paket/list';
-// import {HotelNTT} from './pages/Hotel/ntt';
-// import {HotelNTB} from './pages/Hotel/ntb';
-// import {OlehMataram} from './pages/Oleh/OlehMataram';
-// import {OlehKupang} from './pages/Oleh/OlehKupang';
-// import {OlehFlores} from './pages/Oleh/OlehFlores';
+
 import {Quizattempt} from './pages/Restoran';
 import {Pdf} from './pages/Restoran/list';
-// import {RestoranMataram} from './pages/Restoran/RestoranMataram';
-// import {RestoranKupang} from './pages/Restoran/RestoranKupang';
-// import {RestoranFlores} from './pages/Restoran/RestoranFlores';
+
 import '@fontsource/poppins/300.css';
 import '@fontsource/poppins/400.css';
 import '@fontsource/poppins/500.css';
@@ -62,15 +54,6 @@ import '@fontsource/poppins/800.css';
 import ProtectedRoute from './components/login/ProtectedRoute';
 import ProtectedRouteAdmin from './components/login/ProtectedRouteAdmin';
 import ProtectedRouteSuperAdmin from './components/login/ProtectedRouteSuperAdmin';
-
-
-
-// const isAuthenticated = () => {
-//   const token = localStorage.getItem('token');
-//   const tokenExpiration = localStorage.getItem('tokenExpiration') as string; // Type assertion
-//   // Check if token exists and if it's not expired
-//   return token && Date.now() < parseInt(tokenExpiration);
-// };
 
 // Create a custom theme
 const theme = createTheme({
@@ -138,42 +121,7 @@ const router = createBrowserRouter([
       // </ProtectedRoute>
     )
   },
-  // {
-  //   path: '/wisata-kupang',
-  //   element: (
-  //     <ProtectedRoute>
-  //     <>
-  //       <Navbar />
-  //       <Kupang />
-  //       <Footer/>
-  //     </>
-  //     </ProtectedRoute>
-  //   )
-  // },
-  // {
-  //   path: '/wisata-mataram',
-  //   element: (
-  //     <ProtectedRoute>
-  //     <>
-  //       <Navbar />
-  //       <Mataram />
-  //       <Footer/>
-  //     </>
-  //     </ProtectedRoute>
-  //   )
-  // },
-  // {
-  //   path: '/wisata-flores',
-  //   element: (
-  //     <ProtectedRoute>
-  //     <>
-  //       <Navbar />
-  //       <Flores />
-  //       <Footer/>
-  //     </>
-  //     </ProtectedRoute>
-  //   )
-  // },
+  
   {
     path: '/cari-oleh-oleh',
     element: (
@@ -198,54 +146,7 @@ const router = createBrowserRouter([
       // </ProtectedRoute>
     )
   },
-  // {
-  //   path: '/oleh-oleh-mataram',
-  //   element: (
-  //     <ProtectedRoute>
-  //     <>
-  //       <Navbar />
-  //       <OlehMataram />
-  //       <Footer/>
-  //     </>
-  //     </ProtectedRoute>
-  //   )
-  // },
-  // {
-  //   path: '/oleh-oleh-kupang',
-  //   element: (
-  //     <ProtectedRoute>
-  //     <>
-  //       <Navbar />
-  //       <OlehKupang />
-  //       <Footer/>
-  //     </>
-  //     </ProtectedRoute>
-  //   )
-  // },
-  // {
-  //   path: '/oleh-oleh-flores',
-  //   element: (
-  //     <ProtectedRoute>
-  //     <>
-  //       <Navbar />
-  //       <OlehFlores/>
-  //       <Footer/>
-  //     </>
-  //     </ProtectedRoute>
-  //   )
-  // },
-  // {
-  //   path: '/cari-restoran',
-  //   element: (
-  //     // <ProtectedRoute>
-  //     <>
-  //       <Navbarwhite />
-  //       <Restoran />
-  //       <Footer/>
-  //     </>
-  //     // </ProtectedRoute>
-  //   )
-  // },
+  
   {
     path: '/pdfviewer',
     element: (
@@ -258,49 +159,14 @@ const router = createBrowserRouter([
       // </ProtectedRoute>
     )
   },
-  // {
-  //   path: '/restoran-mataram',
-  //   element: (
-  //     <ProtectedRoute>
-  //     <>
-  //       <Navbar/>
-  //       <RestoranMataram />
-  //       <Footer/>
-  //     </>
-  //     </ProtectedRoute>
-  //   )
-  // },
-  // {
-  //   path: '/restoran-kupang',
-  //   element: (
-  //     <ProtectedRoute>
-  //     <>
-  //       <Navbar/>
-  //       <RestoranKupang />
-  //       <Footer/>
-  //     </>
-  //     </ProtectedRoute>
-  //   )
-  // },
-  // {
-  //   path: '/restoran-flores',
-  //   element: (
-  //     <ProtectedRoute>
-  //     <>
-  //       <Navbar/>
-  //       <RestoranFlores/>
-  //       <Footer/>
-  //     </>
-  //     </ProtectedRoute>
-  //   )
-  // },
+ 
   {
     path: '/paketku',
     element: (
     // <ProtectedRoute>
     <>
     <Navbar />
-    <Paket/>,
+    <Paket/>
     <Footer/>
     </>
     // </ProtectedRoute>
@@ -319,30 +185,7 @@ const router = createBrowserRouter([
         // </ProtectedRoute>
       )
     },
-    // {
-    //   path: '/hotel-NTT',
-    //   element: (
-    //     <ProtectedRoute>
-    //     <>
-    //       <Navbar/>
-    //       <HotelNTT />
-    //       <Footer/>
-    //     </>
-    //     </ProtectedRoute>
-    //   )
-    // },
-    // {
-    //   path: '/hotel-NTB',
-    //   element: (
-    //     <ProtectedRoute>
-    //     <>
-    //       <Navbar/>
-    //       <HotelNTB />
-    //       <Footer/>
-    //     </>
-    //     </ProtectedRoute>
-    //   )
-    // },
+   
     {
       path: '/profile',
       element: (

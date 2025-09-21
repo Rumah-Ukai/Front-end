@@ -1,5 +1,5 @@
 // src/components/beranda/soal.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Card,
   Stack,
@@ -20,6 +20,8 @@ import {
 } from '@mui/material';
 import FlagIcon from '@mui/icons-material/Flag';
 import { InlineMath } from 'react-katex';
+import axios from 'axios';
+import { tokensSet } from '../../theme/tokens';
 
 interface Option {
   id: string;
@@ -53,6 +55,12 @@ interface QuestionFormProps {
   currentAttemptId?: { tryoutId: string; attemptNumber: number };
   registerQuestionRef?: (id: number, el: HTMLDivElement | null) => void;
 }
+
+interface ThemeFromDB {
+  palette: keyof typeof tokensSet;
+}
+
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
 const getFontSize = (size: 'small' | 'normal' | 'large') => {
   switch (size) {
@@ -105,12 +113,34 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
   fontSize,
   registerQuestionRef,
 }) => {
+  const [themePalette, setThemePalette] = useState(tokensSet.palette1);
+
+  useEffect(() => {
+    const fetchTheme = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const res = await axios.get<ThemeFromDB>(`${API_BASE}/user/theme`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.data?.palette && tokensSet[res.data.palette]) {
+          setThemePalette(tokensSet[res.data.palette]);
+        }
+      } catch (err) {
+        console.error('Gagal ambil tema', err);
+      }
+    };
+
+    void fetchTheme();
+  }, []);
+
   const visibleQuestions = selectedQuestionId ? questions.filter((q) => q.id === selectedQuestionId) : questions;
 
   return (
     <Stack spacing={1} sx={{ width: '100%', height: '100%' }}>
       {visibleQuestions.map((q) => {
-        // nomor soal dihitung dari array questions global
         const soalNumber = questions.findIndex((x) => x.id === q.id) + 1;
         const isFlagged = flaggedQuestions.includes(q.id);
         const currentFontSize = getFontSize(fontSize);
@@ -132,14 +162,14 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
               sx={{
                 borderRadius: 2,
                 boxShadow: 2,
-                backgroundColor: 'background.paper',
+                backgroundColor: themePalette.primaryContrastText,
                 mb: 1,
               }}
             >
               <CardHeader
-                sx={{ backgroundColor: '#1976d2', py: 1 }}
+                sx={{ backgroundColor: themePalette.primaryDark, py: 1 }}
                 title={
-                  <Typography variant="subtitle1" fontWeight="bold" color="white" fontSize={'18px'}>
+                  <Typography variant="subtitle1" fontWeight="bold" color={themePalette.primaryContrastText} fontSize={'18px'}>
                     Soal {soalNumber}
                   </Typography>
                 }
@@ -150,7 +180,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
                         size="small"
                         onClick={handleFlagClick}
                         sx={{
-                          color: isFlagged ? 'error.main' : 'rgba(255,255,255,0.9)',
+                          color: isFlagged ? themePalette.error : themePalette.primaryContrastText,
                           '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
                           fontWeight: '700',
                           fontFamily: 'poppins',
@@ -164,7 +194,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
               />
 
               <CardContent>
-                <Typography variant="body1" sx={{ mb: 2, fontSize: currentFontSize }}>
+                <Typography variant="body1" sx={{ mb: 2, fontSize: currentFontSize, color: themePalette.btnSecondaryText, fontWeight:'500' }}>
                   {parseTextWithMath(q.text)}
                 </Typography>
 
@@ -186,7 +216,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
                       <TableHead>
                         <TableRow>
                           {parsedTable.headers.map((header, idx2) => (
-                            <TableCell key={idx2} sx={{ fontWeight: 'bold' }}>
+                            <TableCell key={idx2} sx={{ fontWeight: 'bold', color: themePalette.btnSecondaryText }}>
                               {header}
                             </TableCell>
                           ))}
@@ -197,9 +227,11 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
                           <TableRow key={rIdx}>
                             {row.map((cell, cIdx) =>
                               typeof cell === 'string' ? (
-                                <TableCell key={cIdx}>{cell}</TableCell>
+                                <TableCell key={cIdx} sx={{ color: themePalette.btnSecondaryText }}>
+                                  {cell}
+                                </TableCell>
                               ) : (
-                                <TableCell key={cIdx} colSpan={cell.colspan || 1} sx={{ textAlign: 'center' }}>
+                                <TableCell key={cIdx} colSpan={cell.colspan || 1} sx={{ textAlign: 'center', color: themePalette.btnSecondaryText }}>
                                   {cell.value}
                                 </TableCell>
                               )
@@ -211,16 +243,30 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
                   </Box>
                 )}
 
-                <RadioGroup value={answers[q.id] || ''} onChange={(e) => onAnswerChange(q.id, e.target.value)}>
-                  {q.options.map((opt) => (
-                    <FormControlLabel
-                      key={opt.id}
-                      value={opt.id}
-                      control={<Radio />}
-                      label={<Typography sx={{ fontSize: currentFontSize }}>{parseTextWithMath(opt.text)}</Typography>}
-                    />
-                  ))}
-                </RadioGroup>
+            <RadioGroup value={answers[q.id] || ''} onChange={(e) => onAnswerChange(q.id, e.target.value)}>
+  {q.options.map((opt) => (
+    <FormControlLabel
+      key={opt.id}
+      value={opt.id}
+      control={
+        <Radio
+          sx={{
+            color: themePalette.primaryLight, // warna default
+            '&.Mui-checked': {
+              color: themePalette.primaryDark, // warna saat dipilih
+            },
+          }}
+        />
+      }
+      label={
+        <Typography sx={{ fontSize: currentFontSize, color: themePalette.btnSecondaryText, fontWeight:'500'  }}>
+          {parseTextWithMath(opt.text)}
+        </Typography>
+      }
+    />
+  ))}
+</RadioGroup>
+
               </CardContent>
             </Card>
           </div>

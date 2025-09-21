@@ -15,6 +15,9 @@ import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import QuestionForm, { Question as QCompQuestion } from '../../components/beranda/soalreview';
 import QuizNavigation from '../../components/beranda/soalnavreview';
+import { tokensSet } from '../../theme/tokens';
+
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
 export default function QuizReview(): JSX.Element {
   const theme = useTheme();
@@ -64,7 +67,6 @@ export default function QuizReview(): JSX.Element {
     table_headers?: string[] | string | null;
     table_rows?: string[][] | string | null;
 
-    // fields for explanation in DB (must match backend)
     explanation_image_url?: string | null;
     explanation_table_headers?: string[] | string | null;
     explanation_table_rows?: string[][] | string | null;
@@ -96,19 +98,24 @@ export default function QuizReview(): JSX.Element {
   const questionRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const [activeInViewId, setActiveInViewId] = useState<number | null>(null);
 
+  // theme palette from DB (tokens)
+  const [themePalette, setThemePalette] = useState(tokensSet.palette1);
+
   const parseHeaders = (headers?: string[] | string | null): string[] | undefined => {
     if (!headers) return undefined;
     if (Array.isArray(headers)) return headers;
-    return headers.split('|').map(h => h.trim());
+    return (headers as string).split('|').map(h => h.trim());
   };
 
   const parseRows = (rows?: string[][] | string | null): string[][] | undefined => {
     if (!rows) return undefined;
     if (Array.isArray(rows)) return rows as string[][];
-    return rows.split(';').map(r => r.split('|').map(c => c.trim())).filter(r => r.length > 0);
+    return (rows as string)
+      .split(';')
+      .map(r => r.split('|').map(c => c.trim()))
+      .filter(r => r.length > 0);
   };
 
-  // helper to parse answer_order & flags (we only need cleaned answers here)
   const parseAttemptAnswersAndFlags = (attempt: QuizAttemptFromServer | null) => {
     if (!attempt) return { answersMap: {} as Record<number, string>, flaggedIds: [] as number[] };
 
@@ -136,6 +143,43 @@ export default function QuizReview(): JSX.Element {
     return { answersMap, flaggedIds };
   };
 
+  // ambil tema user dari DB supaya bisa dipakai untuk styling lokal di halaman Review
+  useEffect(() => {
+    const fetchTheme = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await axios.get(`${API_BASE}/user`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        // server /user returns user object; expect `tema` field (e.g. 'palette1')
+        const tema = res.data?.tema ?? res.data?.palette;
+        if (tema && typeof tema === 'string' && (tema as keyof typeof tokensSet) in tokensSet) {
+          setThemePalette(tokensSet[tema as keyof typeof tokensSet]);
+        }
+      } catch (err) {
+        // fail silently and keep default palette
+        // console.error('Failed to fetch user theme', err);
+      }
+    };
+    void fetchTheme();
+  }, []);
+
+  // set body/html background to match palette.surface (and restore on unmount)
+  useEffect(() => {
+    const prevBodyBg = document.body.style.backgroundColor;
+    const prevHtmlBg = document.documentElement.style.backgroundColor;
+    if (themePalette?.surface) {
+      document.body.style.backgroundColor = themePalette.primary;
+      document.documentElement.style.backgroundColor = themePalette.primary;
+    }
+    return () => {
+      document.body.style.backgroundColor = prevBodyBg;
+      document.documentElement.style.backgroundColor = prevHtmlBg;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [themePalette.surface]);
+
   useEffect(() => {
     let mounted = true;
     const load = async (): Promise<void> => {
@@ -144,13 +188,11 @@ export default function QuizReview(): JSX.Element {
       try {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('Token tidak ditemukan.');
-
         if (!tryoutId) throw new Error('tryoutId tidak diberikan.');
         if (!attemptNumber) throw new Error('Attempt number tidak diberikan.');
 
-        // fetch questions (backend should honor tryout_questions ordering if requested)
         const qRes = await axios.get<ServerQuestion[]>(
-          `http://localhost:3000/questions?tryoutId=${encodeURIComponent(tryoutId)}`,
+          `${API_BASE}/questions?tryoutId=${encodeURIComponent(tryoutId)}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!mounted) return;
@@ -187,9 +229,8 @@ export default function QuizReview(): JSX.Element {
           };
         });
 
-        // fetch attempt
         const aRes = await axios.get<QuizAttemptFromServer>(
-          `http://localhost:3000/quizattempt/${encodeURIComponent(tryoutId)}/${encodeURIComponent(String(attemptNumber))}`,
+          `${API_BASE}/quizattempt/${encodeURIComponent(tryoutId)}/${encodeURIComponent(String(attemptNumber))}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const attemptData = aRes.data;
@@ -206,11 +247,8 @@ export default function QuizReview(): JSX.Element {
 
           const qMap = new Map<number, Question>();
           mapped.forEach(mq => qMap.set(mq.id, mq));
-
-          // preserve order from attempt.question_order — only keep existing questions
           orderedQuestions = qOrder.map(id => qMap.get(id)).filter(Boolean) as Question[];
 
-          // parse answers (cleaned) and flags if needed
           const { answersMap } = parseAttemptAnswersAndFlags(attemptData);
           Object.assign(answersFromAttempt, answersMap);
         } else {
@@ -231,10 +269,9 @@ export default function QuizReview(): JSX.Element {
     };
     void load();
     return () => { mounted = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tryoutId, attemptNumber]);
 
-  // prepare lists of correct/incorrect indexes (1-based positions in orderedQuestions)
   const correctQuestions = useMemo(() => {
     return questions
       .map((q, idx) => (answers[q.id] === q.answerKey ? idx + 1 : null))
@@ -247,7 +284,6 @@ export default function QuizReview(): JSX.Element {
       .filter((x): x is number => x !== null);
   }, [questions, answers]);
 
-  // === Statistik pengguna ===
   const stats = useMemo(() => {
     const total = questions.length;
     const answeredCount = Object.keys(answers).filter(k => answers[Number(k)]).length;
@@ -255,13 +291,11 @@ export default function QuizReview(): JSX.Element {
     const incorrectCount = Math.max(0, answeredCount - correctCount);
     const unansweredCount = Math.max(0, total - answeredCount);
 
-    // waktu: gunakan submitted_at - start_time jika available, kalau tidak pakai duration_minutes fallback atau kalkulasi sampai sekarang
     let totalSeconds = 0;
     if (currentAttempt) {
       if (currentAttempt.submitted_at && currentAttempt.start_time) {
         totalSeconds = Math.max(0, (new Date(currentAttempt.submitted_at).getTime() - new Date(currentAttempt.start_time).getTime()) / 1000);
       } else if (currentAttempt.start_time) {
-        // belum submitted (unlikely di review), hitung sampai sekarang
         totalSeconds = Math.max(0, (Date.now() - new Date(currentAttempt.start_time).getTime()) / 1000);
       } else if (currentAttempt.duration_minutes) {
         totalSeconds = currentAttempt.duration_minutes * 60;
@@ -314,7 +348,7 @@ export default function QuizReview(): JSX.Element {
   useEffect(() => {
     if (!showAll || questions.length === 0) return;
 
-    let margin = '0px 0px -50% 0px'; // default rootMargin
+    let margin = '0px 0px -50% 0px';
     if (isMobile) margin = '0px 0px -30% 0px';
     else if (isTablet) margin = '0px 0px -40% 0px';
     else if (isLarge) margin = '0px 0px -35% 0px';
@@ -323,7 +357,6 @@ export default function QuizReview(): JSX.Element {
       const visibleEntries = entries.filter(e => e.isIntersecting);
       if (visibleEntries.length === 0) return;
 
-      // Ambil elemen yang paling dekat ke atas viewport
       const closestToTop = visibleEntries.reduce((prev, curr) => {
         return Math.abs(curr.boundingClientRect.top) < Math.abs(prev.boundingClientRect.top)
           ? curr
@@ -352,92 +385,84 @@ export default function QuizReview(): JSX.Element {
     }
   };
 
-  // Stats box component (lokasi render ditentukan di JSX)
-const StatsBox = () => (
-  <Card sx={{ mb: 2, borderRadius: 2, boxShadow: 2 }}>
-    <CardContent>
-      <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
-        Statistik Penyelesaian
-      </Typography>
+  const StatsBox = () => (
+    <Card sx={{ mb: 2, borderRadius: 2, boxShadow: 2, backgroundColor: themePalette.surface }}>
+      <CardContent>
+        <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2, color: themePalette.textPrimary }}>
+          Statistik Penyelesaian
+        </Typography>
 
-      {/* Bagian atas: jumlah soal */}
-      <Stack
-        direction="row"
-        spacing={2}
-        sx={{
-          flexWrap: 'wrap',
-          justifyContent: { xs: 'center', sm: 'space-between' },
-          rowGap: 2,
-        }}
-      >
-        <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
-          <Typography variant="caption">Total Soal</Typography>
-          <Typography variant="h6">{stats.total}</Typography>
-        </Box>
+        <Stack
+          direction="row"
+          spacing={2}
+          sx={{
+            flexWrap: 'wrap',
+            justifyContent: { xs: 'center', sm: 'space-between' },
+            rowGap: 2,
+          }}
+        >
+          <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
+            <Typography variant="caption" sx={{ color: themePalette.textSecondary }}>Total Soal</Typography>
+            <Typography variant="h6" sx={{ color: themePalette.textPrimary }}>{stats.total}</Typography>
+          </Box>
 
-        <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
-          <Typography variant="caption">Terjawab</Typography>
-          <Typography variant="h6">{stats.answeredCount}</Typography>
-        </Box>
+          <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
+            <Typography variant="caption" sx={{ color: themePalette.textSecondary }}>Terjawab</Typography>
+            <Typography variant="h6" sx={{ color: themePalette.textPrimary }}>{stats.answeredCount}</Typography>
+          </Box>
 
-        <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
-          <Typography variant="caption">Benar</Typography>
-          <Typography variant="h6" color="success.main">
-            {stats.correctCount}
-          </Typography>
-        </Box>
+          <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
+            <Typography variant="caption" sx={{ color: themePalette.textSecondary }}>Benar</Typography>
+            <Typography variant="h6" sx={{ color: 'success.main' }}>{stats.correctCount}</Typography>
+          </Box>
 
-        <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
-          <Typography variant="caption">Salah</Typography>
-          <Typography variant="h6" color="error.main">
-            {stats.incorrectCount}
-          </Typography>
-        </Box>
+          <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
+            <Typography variant="caption" sx={{ color: themePalette.textSecondary }}>Salah</Typography>
+            <Typography variant="h6" sx={{ color: 'error.main' }}>{stats.incorrectCount}</Typography>
+          </Box>
 
-        <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
-          <Typography variant="caption">Belum Terjawab</Typography>
-          <Typography variant="h6">{stats.unansweredCount}</Typography>
-        </Box>
-      </Stack>
+          <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
+            <Typography variant="caption" sx={{ color: themePalette.textSecondary }}>Belum Terjawab</Typography>
+            <Typography variant="h6" sx={{ color: themePalette.textPrimary }}>{stats.unansweredCount}</Typography>
+          </Box>
+        </Stack>
 
-      <Divider sx={{ my: 2 }} />
+        <Divider sx={{ my: 2 }} />
 
-      {/* Bagian bawah: waktu */}
-      <Stack
-        direction="row"
-        spacing={2}
-        sx={{
-          flexWrap: 'wrap',
-          justifyContent: { xs: 'center', sm: 'space-between' },
-          rowGap: 2,
-        }}
-      >
-        <Box textAlign="center" flex={1} minWidth={{ xs: '90%', sm: '160px' }}>
-          <Typography variant="caption">Total Waktu</Typography>
-          <Typography variant="body1">{formatSec(stats.totalSeconds)}</Typography>
-        </Box>
+        <Stack
+          direction="row"
+          spacing={2}
+          sx={{
+            flexWrap: 'wrap',
+            justifyContent: { xs: 'center', sm: 'space-between' },
+            rowGap: 2,
+          }}
+        >
+          <Box textAlign="center" flex={1} minWidth={{ xs: '90%', sm: '160px' }}>
+            <Typography variant="caption" sx={{ color: themePalette.textSecondary }}>Total Waktu</Typography>
+            <Typography variant="body1" sx={{ color: themePalette.textPrimary }}>{formatSec(stats.totalSeconds)}</Typography>
+          </Box>
 
-        <Box textAlign="center" flex={1} minWidth={{ xs: '90%', sm: '160px' }}>
-          <Typography variant="caption">Rata-rata / soal (semua)</Typography>
-          <Typography variant="body1">{formatSec(stats.avgSecPerQuestionAll)}</Typography>
-        </Box>
+          <Box textAlign="center" flex={1} minWidth={{ xs: '90%', sm: '160px' }}>
+            <Typography variant="caption" sx={{ color: themePalette.textSecondary }}>Rata-rata / soal (semua)</Typography>
+            <Typography variant="body1" sx={{ color: themePalette.textPrimary }}>{formatSec(stats.avgSecPerQuestionAll)}</Typography>
+          </Box>
 
-        <Box textAlign="center" flex={1} minWidth={{ xs: '90%', sm: '160px' }}>
-          <Typography variant="caption">Rata-rata / soal (yang dijawab)</Typography>
-          <Typography variant="body1">{formatSec(stats.avgSecPerAnswered)}</Typography>
-        </Box>
-      </Stack>
-    </CardContent>
-  </Card>
-);
-
-
+          <Box textAlign="center" flex={1} minWidth={{ xs: '90%', sm: '160px' }}>
+            <Typography variant="caption" sx={{ color: themePalette.textSecondary }}>Rata-rata / soal (yang dijawab)</Typography>
+            <Typography variant="body1" sx={{ color: themePalette.textPrimary }}>{formatSec(stats.avgSecPerAnswered)}</Typography>
+          </Box>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
 
   if (loading) {
     return <Stack justifyContent="center" alignItems="center" sx={{ height: '60vh' }}>
       <Typography>Loading review...</Typography>
     </Stack>;
   }
+
   if (error) {
     return <Stack justifyContent="center" alignItems="center" sx={{ height: '60vh' }}>
       <Typography color="error">{error}</Typography>
@@ -453,10 +478,10 @@ const StatsBox = () => (
         mx: 'auto',
         mt: 4,
         pr: { xs: '20px', sm: '360px', md: '440px', lg: '520px', xl: '540px' },
+        bgcolor: themePalette.primary,
       }}
       alignItems="stretch"
     >
-      {/* NAV untuk mobile */}
       {isMobile && (
         <Box sx={{ mb: 2, position: 'sticky', top: 20, zIndex: 10 }}>
           <QuizNavigation
@@ -464,7 +489,7 @@ const StatsBox = () => (
             selectedQuestion={
               showAll
                 ? (() => {
-                    const idx = questions.findIndex(q => q.id === (activeInViewId ?? questions[0].id));
+                    const idx = questions.findIndex(q => q.id === (activeInViewId ?? questions[0]?.id));
                     return idx >= 0 ? idx + 1 : 1;
                   })()
                 : (() => {
@@ -487,63 +512,92 @@ const StatsBox = () => (
         <Stack spacing={4} sx={{ width: '100%', flexGrow: 1 }}>
           {showAll ? (
             <>
-              {/* Jika showAll: tampilkan statistik di paling atas (sebelum semua soal) */}
               <StatsBox />
-
               <QuestionForm
                 questions={questions as QCompQuestion[]}
                 answers={answers}
                 fontSize={fontSize}
                 registerQuestionRef={(id, el) => { questionRefs.current[id] = el; }}
+                isReview
               />
-              <Button variant="contained" size="large" color="primary" onClick={handleExit}>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={handleExit}
+                sx={{
+                  backgroundColor: themePalette.primary,
+                  color: themePalette.primaryContrastText,
+                  '&:hover': { backgroundColor: themePalette.primaryDark },
+                }}
+              >
                 Exit
               </Button>
             </>
           ) : (
             <>
-              {/* Jika show one: tampilkan statistik hanya ketika user berada di soal nomor 1 */}
               {questions.length > 0 && selectedQuestionId === questions[0].id && <StatsBox />}
-
               <QuestionForm
                 questions={questions as QCompQuestion[]}
                 selectedQuestionId={selectedQuestionId ?? undefined}
                 answers={answers}
                 fontSize={fontSize}
+                isReview
               />
             </>
           )}
+
           {!showAll && (
-            <Stack direction="row" spacing={2} justifyContent="space-between">
-              <Button sx={{fontSize:'10px'}} variant="outlined" onClick={goToPreviousQuestion} disabled={questions.findIndex(q => q.id === selectedQuestionId) <= 0}>
+            <Stack direction="row" pb={'20px'} spacing={2} justifyContent="space-between">
+              <Button
+                variant="outlined"
+                onClick={goToPreviousQuestion}
+                disabled={questions.findIndex(q => q.id === selectedQuestionId) <= 0}
+                sx={{fontSize:'10px', borderColor: themePalette.primary, color: themePalette.primaryContrastText, bgcolor:themePalette.primaryLight,
+                       '&:hover': { backgroundColor: themePalette.primaryDark },
+                    }}>
                 Sebelumnya
               </Button>
-              <Button sx={{fontSize:'10px'}} variant="contained" size="large" onClick={handleExit}>
+
+              <Button
+                variant="contained"
+                size="large"
+                onClick={handleExit}
+                sx={{fontSize:'10px', borderColor: themePalette.primary, color: themePalette.primaryContrastText, bgcolor:themePalette.primaryLight,
+                       '&:hover': { backgroundColor: themePalette.primaryDark },
+                    }}>
                 Keluar
               </Button>
-              <Button sx={{fontSize:'10px'}} variant="outlined" onClick={goToNextQuestion} disabled={(() => {
-                const idx = questions.findIndex(q => q.id === selectedQuestionId);
-                return idx === -1 || idx === questions.length - 1;
-              })()}>
+
+              <Button
+                variant="outlined"
+                onClick={goToNextQuestion}
+                disabled={(() => {
+                  const idx = questions.findIndex(q => q.id === selectedQuestionId);
+                  return idx === -1 || idx === questions.length - 1;
+                })()}
+                 sx={{fontSize:'10px', borderColor: themePalette.primary, color: themePalette.primaryContrastText, bgcolor:themePalette.primaryLight,
+                       '&:hover': { backgroundColor: themePalette.primaryDark },
+                    }}>
                 Selanjutnya
               </Button>
             </Stack>
           )}
         </Stack>
       </Box>
+
       {!isMobile && (
         <Box sx={{ width: { xs: '100%', sm: 320, md: 400, lg: 480, xl: 520 }, position: 'fixed', right: 20, top: { sm: '32px', md: '32px' } }}>
           <QuizNavigation
             totalQuestions={questions.length}
             selectedQuestion={showAll
               ? (() => {
-                const idx = questions.findIndex(q => q.id === (activeInViewId ?? questions[0].id));
-                return idx >= 0 ? idx + 1 : 1;
-              })()
+                  const idx = questions.findIndex(q => q.id === (activeInViewId ?? questions[0]?.id));
+                  return idx >= 0 ? idx + 1 : 1;
+                })()
               : (() => {
-                const idx = questions.findIndex(q => q.id === selectedQuestionId);
-                return idx >= 0 ? idx + 1 : 1;
-              })()
+                  const idx = questions.findIndex(q => q.id === selectedQuestionId);
+                  return idx >= 0 ? idx + 1 : 1;
+                })()
             }
             onSelectQuestion={handleSelectQuestion}
             showAll={showAll}

@@ -1,5 +1,5 @@
 // src/pages/AuthPage.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Grid,
@@ -11,6 +11,9 @@ import {
   CircularProgress,
   TextField,
   Alert,
+  useTheme,
+  useMediaQuery,
+
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import axios from 'axios';
@@ -30,8 +33,10 @@ export default function AuthPage(): JSX.Element {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-
-  const API_BASE = 'http://localhost:3000'; // sesuaikan jika beda
+// di dalam komponen AuthPage
+const theme = useTheme();
+const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
   // Helper to clear messages
   const clearMsgs = () => {
@@ -197,26 +202,61 @@ export default function AuthPage(): JSX.Element {
   const isEmailReadOnly = mode === 'verify-register' || mode === 'verify-forgot';
 
   return (
-    <Box sx={{ width: '100%', minHeight: '100vh' }}>
+    <Box
+      sx={{
+        width: '100%',
+        minHeight: '100vh',
+  
+      }}
+    >
       <Grid container sx={{ height: '100vh' }}>
-        <Grid item xs={12} md={6} sx={{ background: '#fff' }}>
-          <Stack height="100%" justifyContent="center" alignItems="center">
-            <img src={bg} alt="logo" style={{ maxWidth: 550, width: '100%' }} />
-          </Stack>
-        </Grid>
+        {/* panel kiri - gunakan paper token */}
+        <Grid
+  item
+  xs={12}
+  md={6}
+  sx={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  }}
+>
+  <Stack height="100%" justifyContent="center" alignItems="center">
+    <Box
+      sx={{
+    
+        borderRadius: 4, // radius 16px
+        boxShadow: 6, // elevasi
+      
+      }}
+    >
+      <img
+        src={bg}
+        alt="logo"
+        style={{
+          maxWidth: 400,
+          width: '100%',
+          borderRadius: '12px', // radius gambar juga
+          display: 'block',
+        }}
+      />
+    </Box>
+  </Stack>
+</Grid>
+
 
         <Grid item xs={12} md={6} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 6 }}>
           <Box sx={{ width: '100%', maxWidth: 520 }}>
             <Stack spacing={3}>
               <Stack>
-                <Typography variant="h3" sx={{ color: '#FF010C', fontWeight: 700 }}>
+                <Typography variant="h3" sx={{ fontWeight: 700 }}>
                   {mode === 'login' && 'Masuk'}
                   {mode === 'register' && 'Daftar'}
                   {mode === 'forgot' && 'Lupa Password'}
                   {mode === 'verify-register' && 'Verifikasi Registrasi'}
                   {mode === 'verify-forgot' && 'Reset Password'}
                 </Typography>
-                <Typography variant="subtitle1" sx={{ color: '#04214C' }}>
+                <Typography variant="subtitle1" sx={{ color: 'white',fontWeight: 500  }}>
                   {mode === 'login' && 'Selamat datang di Rumah Ukai'}
                   {mode === 'register' && 'Isi email & password untuk membuat akun'}
                   {mode === 'forgot' && 'Masukkan email untuk menerima kode reset'}
@@ -230,36 +270,82 @@ export default function AuthPage(): JSX.Element {
               {error && <Alert severity="error">{error}</Alert>}
 
               {/* FORM */}
-              <Stack spacing={2}>
+              <Stack spacing={2}  >
                 {/* Email always shown but readonly in verify modes */}
                 <TextField
-                  label="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  fullWidth
-                  size="medium"
-                  InputProps={{
-                    readOnly: isEmailReadOnly,
-                  }}
-                />
+  label="Email"
+  sx={{
+    input: { color: 'white' }, // teks input putih normal
+    '& .MuiInputBase-input::placeholder': {
+      color: 'white',
+      opacity: 0.8,
+    },
+    '& .MuiOutlinedInput-root': {
+      '& fieldset': { borderColor: 'white' },
+      '&:hover fieldset': { borderColor: 'white' },
+      '&.Mui-focused fieldset': { borderColor: 'white' },
+    },
+    '& .MuiInputLabel-root': {
+      color: 'white',
+    },
+    '& .MuiInputLabel-root.Mui-focused': {
+      color: 'white',
+    },
+    // fix autofill
+    '& input:-webkit-autofill': {
+      WebkitBoxShadow: '0 0 0 1000px #64483D inset', // ganti #121212 sesuai background form kamu
+      WebkitTextFillColor: 'white', // tetap putih
+      caretColor: 'white',
+    },
+  }}
+  value={email}
+  onChange={(e) => setEmail(e.target.value)}
+  fullWidth
+  size="medium"
+  InputProps={{
+    readOnly: isEmailReadOnly,
+  }}
+/>
+
 
                 {/* Login & Register password */}
                 {(mode === 'login' || mode === 'register') && (
                   <TextField
                     label="Password"
+                   sx={{
+  input: { color:'white' },
+  '& .MuiOutlinedInput-root': {
+    '& fieldset': { borderColor: 'white' },
+    '&:hover fieldset': { borderColor: 'white' },
+    '&.Mui-focused fieldset': { borderColor: 'white' },
+
+    // override autofill
+    '& input:-webkit-autofill': {
+      WebkitBoxShadow: `0 0 0 1000px 'white' inset`,
+      WebkitTextFillColor:'white',
+      transition: 'background-color 5000s ease-in-out 0s',
+    },
+  },
+  '& .MuiInputLabel-root': { color: 'white' },
+  '& .MuiInputLabel-root.Mui-focused': { color: 'white' },
+}}
+
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     fullWidth
                     InputProps={{
                       endAdornment: (
-                        <InputAdornment position="end">
+                        <InputAdornment position="end" >
                           <IconButton onClick={() => setShowPassword((s) => !s)} edge="end">
                             {showPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
                         </InputAdornment>
                       ),
                     }}
+                      FormHelperTextProps={{
+    sx: { color: 'white' }, // bikin helperText putih
+  }}
                     helperText={mode === 'register' ? 'Password minimal 5 karakter' : undefined}
                     error={mode === 'register' && password.length > 0 && !validatePasswordLen(password)}
                   />
@@ -293,59 +379,152 @@ export default function AuthPage(): JSX.Element {
               </Stack>
 
               {/* ACTION BUTTONS */}
-              <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-                {mode === 'login' && (
-                  <>
-                    <Button
-                      variant="contained"
-                      color="error"
-                      onClick={handleLogin}
-                      disabled={loading}
-                      sx={{ px: 4 }}
-                    >
-                      {loading ? <CircularProgress size={20} color="inherit" /> : 'Masuk'}
-                    </Button>
-                    <Button onClick={() => { clearMsgs(); setMode('forgot'); }}>Lupa Password</Button>
-                    <Button onClick={() => { clearMsgs(); setMode('register'); }}>Daftar</Button>
-                  </>
-                )}
+             <Stack direction="row"   spacing={isMobile ? 0 : 2} // kalau mobile, hilangkan spacing kiri
+ alignItems="center" flexWrap="wrap">
+  {mode === 'login' && (
+    <>
+      <Button
+        onClick={handleLogin}
+        disabled={loading}
+        sx={{
+          px: 4,
+          bgcolor: '#462011',
+          color: 'white',
+          '&:hover': { bgcolor: '#5a2a17' },
+        }}
+      >
+        {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Masuk'}
+      </Button>
+      <Button
+        onClick={() => { clearMsgs(); setMode('forgot'); }}
+        sx={{
+          
+          // bgcolor: '#462011',
+          color: 'white',
+          '&:hover': { bgcolor: '#5a2a17' },
+        }}
+      >
+        Lupa Password
+      </Button>
+      <Button
+        onClick={() => { clearMsgs(); setMode('register'); }}
+        sx={{
+          // bgcolor: '#462011',
+          color: 'white',
+          '&:hover': { bgcolor: '#5a2a17' },
+        }}
+      >
+        Registrasi
+      </Button>
+    </>
+  )}
 
-                {mode === 'register' && (
-                  <>
-                    <Button variant="contained" color="error" onClick={handleRegister} disabled={loading}>
-                      {loading ? <CircularProgress size={20} color="inherit" /> : 'Kirim Kode (Daftar)'}
-                    </Button>
-                    <Button onClick={() => { clearMsgs(); setMode('login'); }}>Kembali ke Login</Button>
-                  </>
-                )}
+  {mode === 'register' && (
+    <>
+      <Button
+        onClick={handleRegister}
+        disabled={loading}
+        sx={{
+          px: 4,
+          bgcolor: '#462011',
+          color: 'white',
+          '&:hover': { bgcolor: '#5a2a17' },
+        }}
+      >
+        {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Kirim Kode (Daftar)'}
+      </Button>
+      <Button
+        onClick={() => { clearMsgs(); setMode('login'); }}
+        sx={{
+          // bgcolor: '#462011',
+          color: 'white',
+          '&:hover': { bgcolor: '#5a2a17' },
+        }}
+      >
+        Kembali ke Login
+      </Button>
+    </>
+  )}
 
-                {mode === 'verify-register' && (
-                  <>
-                    <Button variant="contained" color="error" onClick={handleRegisterVerify} disabled={loading}>
-                      {loading ? <CircularProgress size={20} color="inherit" /> : 'Verifikasi & Masuk'}
-                    </Button>
-                    <Button onClick={() => { clearMsgs(); setMode('register'); }}>Kembali</Button>
-                  </>
-                )}
+  {mode === 'verify-register' && (
+    <>
+      <Button
+        onClick={handleRegisterVerify}
+        disabled={loading}
+        sx={{
+          bgcolor: '#462011',
+          color: 'white',
+          '&:hover': { bgcolor: '#5a2a17' },
+        }}
+      >
+        {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Verifikasi & Masuk'}
+      </Button>
+      <Button
+        onClick={() => { clearMsgs(); setMode('register'); }}
+        sx={{
+          // bgcolor: '#462011',
+          color: 'white',
+          '&:hover': { bgcolor: '#5a2a17' },
+        }}
+      >
+        Kembali
+      </Button>
+    </>
+  )}
 
-                {mode === 'forgot' && (
-                  <>
-                    <Button variant="contained" color="error" onClick={handleForgotSend} disabled={loading}>
-                      {loading ? <CircularProgress size={20} color="inherit" /> : 'Kirim Kode'}
-                    </Button>
-                    <Button onClick={() => { clearMsgs(); setMode('login'); }}>Kembali</Button>
-                  </>
-                )}
+  {mode === 'forgot' && (
+    <>
+      <Button
+        onClick={handleForgotSend}
+        disabled={loading}
+        sx={{
+          bgcolor: '#462011',
+          color: 'white',
+          '&:hover': { bgcolor: '#5a2a17' },
+        }}
+      >
+        {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Kirim Kode'}
+      </Button>
+      <Button
+        onClick={() => { clearMsgs(); setMode('login'); }}
+        sx={{
+          // bgcolor: '#462011',
+          color: 'white',
+          '&:hover': { bgcolor: '#5a2a17' },
+        }}
+      >
+        Kembali
+      </Button>
+    </>
+  )}
 
-                {mode === 'verify-forgot' && (
-                  <>
-                    <Button variant="contained" color="error" onClick={handleForgotVerify} disabled={loading}>
-                      {loading ? <CircularProgress size={20} color="inherit" /> : 'Ganti Password'}
-                    </Button>
-                    <Button onClick={() => { clearMsgs(); setMode('login'); }}>Kembali</Button>
-                  </>
-                )}
-              </Stack>
+  {mode === 'verify-forgot' && (
+    <>
+      <Button
+        onClick={handleForgotVerify}
+        disabled={loading}
+        sx={{
+          bgcolor: '#462011',
+          color: 'white',
+          '&:hover': { bgcolor: '#5a2a17' },
+        }}
+      >
+        {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Ganti Password'}
+      </Button>
+      <Button
+        onClick={() => { clearMsgs(); setMode('login'); }}
+        sx={{
+          // bgcolor: '#462011',
+          color: 'white',
+          '&:hover': { bgcolor: '#5a2a17' },
+        }}
+      >
+        Kembali
+      </Button>
+    </>
+  )}
+</Stack>
+
             </Stack>
           </Box>
         </Grid>

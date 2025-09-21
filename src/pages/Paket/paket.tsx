@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+import { tokensSet } from '../../theme/tokens';
 
 interface Tryout {
   id: string;
@@ -24,6 +25,8 @@ interface QuizAttempt {
   grade: string | number | null;
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+
 export default function Paket() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -32,12 +35,41 @@ export default function Paket() {
   const [error, setError] = useState<string | null>(null);
   const [attempts, setAttempts] = useState<Record<string, boolean>>({});
   const [bestGrades, setBestGrades] = useState<Record<string, number>>({});
+  const [palette, setPalette] = useState(tokensSet.palette1);
 
   const paketId = searchParams.get('id');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
+ useEffect(() => {
+    const prevBodyBg = document.body.style.backgroundColor;
+    const prevHtmlBg = document.documentElement.style.backgroundColor;
+    document.body.style.backgroundColor = palette.primaryContrastText;
+    document.documentElement.style.backgroundColor = palette.primaryContrastText;
+    return () => {
+      document.body.style.backgroundColor = prevBodyBg;
+      document.documentElement.style.backgroundColor = prevHtmlBg;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [palette.surface]);
   useEffect(() => {
+    const fetchUserTheme = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      try {
+        const res = await axios.get(`${API_BASE}/user`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (
+          res.data.tema &&
+          tokensSet[res.data.tema as keyof typeof tokensSet]
+        ) {
+          setPalette(tokensSet[res.data.tema as keyof typeof tokensSet]);
+        }
+      } catch (err) {
+        console.error('Error fetching user theme:', err);
+      }
+    };
+
     const fetchTryouts = async () => {
       if (!paketId) {
         setError('Paket ID tidak ditemukan');
@@ -50,11 +82,13 @@ export default function Paket() {
         setError(null);
 
         const token = localStorage.getItem('token');
-        const tryoutRes = await axios.get('http://localhost:3000/tryouts', {
+        const tryoutRes = await axios.get(`${API_BASE}/tryouts`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        const tryoutsArray = Array.isArray(tryoutRes.data) ? tryoutRes.data : [];
+        const tryoutsArray = Array.isArray(tryoutRes.data)
+          ? tryoutRes.data
+          : [];
         const filteredTryouts = tryoutsArray.filter(
           (t: Tryout) => t.paket_id === paketId
         );
@@ -62,19 +96,13 @@ export default function Paket() {
 
         const promises = filteredTryouts.map(async (t: Tryout) => {
           try {
-            const res = await axios.get(
-              `http://localhost:3000/quizattempt/${t.id}`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
+            const res = await axios.get(`${API_BASE}/quizattempt/${t.id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
             const attemptsData = res.data || [];
             const hasAttempt = attemptsData.length > 0;
-
             const best = hasAttempt
-              ? Math.max(
-                  ...attemptsData.map(
-                    (a: QuizAttempt) => Number(a.grade) || 0
-                  )
-                )
+              ? Math.max(...attemptsData.map((a: QuizAttempt) => Number(a.grade) || 0))
               : null;
             return { id: t.id, hasAttempt, bestGrade: best };
           } catch {
@@ -99,6 +127,7 @@ export default function Paket() {
       }
     };
 
+    fetchUserTheme();
     fetchTryouts();
   }, [paketId]);
 
@@ -106,25 +135,24 @@ export default function Paket() {
     navigate(`/tryouts?id=${tryout.id}`);
   };
 
-  // ✅ Ganti ke navigate ke PdfView, bukan open langsung URL
   const handleOpenPdf = (tryoutId: string) => {
-      window.open(`/pdfviewer?id=${tryoutId}`, '_blank');
+    navigate(`/pdfviewer?id=${tryoutId}`);
   };
 
   const getGradeColor = (grade: number): string => {
-    if (grade >= 80) return theme.palette.success.main;
-    if (grade >= 41) return theme.palette.info.main;
-    return theme.palette.error.main;
+    if (grade >= 80) return palette.success;
+    if (grade >= 41) return palette.info;
+    return palette.error;
   };
 
   if (loading) return <Typography>Loading...</Typography>;
   if (error) return <Typography color="error">{error}</Typography>;
 
   return (
-    <Stack spacing={4} sx={{ p: 4 }}>
+    <Stack spacing={4} sx={{ p: 4, bgcolor: palette.primaryContrastText }}>
       <Typography
         variant="h4"
-        sx={{ fontWeight: 'bold', color: 'primary.main' }}
+        sx={{ fontWeight: 'bold', color: palette.btnSecondaryText }}
       >
         Daftar Tryout Paket
       </Typography>
@@ -132,73 +160,95 @@ export default function Paket() {
       {tryouts.length === 0 ? (
         <Typography>Tidak ada tryout untuk paket ini</Typography>
       ) : (
-        <Stack spacing={2}>
-          {tryouts.map((tryout) => (
-            <Paper
-              key={tryout.id}
-              elevation={0}
-              sx={{
-                p: 3,
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 2,
-                display: 'flex',
-                flexDirection: isMobile ? 'column' : 'row',
-                justifyContent: 'space-between',
-                alignItems: isMobile ? 'flex-start' : 'center',
-              }}
-            >
-              {/* Kiri: judul + nilai terbaik (desktop/tablet) */}
-              <Box sx={{ flex: 1, mb: isMobile ? 2 : 0 }}>
-                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
-                  {tryout.name}
-                </Typography>
-
-                {!isMobile &&
-                  attempts[tryout.id] &&
-                  bestGrades[tryout.id] !== undefined && (
-                    <Box sx={{ mt: 1 }}>
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          fontWeight: 'bold',
-                          color: getGradeColor(bestGrades[tryout.id]),
-                        }}
-                      >
-                        {bestGrades[tryout.id]}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Nilai Terbaik
-                      </Typography>
-                    </Box>
-                  )}
-              </Box>
-
-              {/* Tombol */}
-              <Stack
-                direction={isMobile ? 'column' : 'row'}
-                spacing={2}
-                sx={{ width: isMobile ? '100%' : 'auto' }}
+        <Stack spacing={2} >
+          {tryouts.map((tryout) => {
+            return (
+              <Paper
+                key={tryout.id}
+                elevation={0}
+                sx={{
+                  p: 3,
+                  border: '1px solid',
+                  borderColor: palette.primary,
+                  bgcolor: palette.primary,
+                  borderRadius: 2,
+                  display: 'flex',
+                  flexDirection: isMobile ? 'column' : 'row',
+                  justifyContent: 'space-between',
+                  alignItems: isMobile ? 'flex-start' : 'center',
+                }}
               >
-                <Button
-                  variant="contained"
-                  onClick={() => handleTryoutClick(tryout)}
-                >
-                  Buka Tryout
-                </Button>
-
-                {tryout.pdf_url && (
-                  <Button
-                    variant="outlined"
-                    disabled={!attempts[tryout.id]}
-                    onClick={() => handleOpenPdf(tryout.id)} // ✅ kirim id tryout
+                <Box sx={{ flex: 1, mb: isMobile ? 2 : 0 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 'bold',
+                  
+                      color: palette.primaryContrastText,
+                    }}
                   >
-                    Buka PDF
+                    {tryout.name}
+                  </Typography>
+
+                  {!isMobile &&
+                    attempts[tryout.id] &&
+                    bestGrades[tryout.id] !== undefined && (
+                      <Box sx={{ mt: 1 }}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            fontWeight: 'bold',
+                            color: getGradeColor(bestGrades[tryout.id]),
+                          }}
+                        >
+                          {bestGrades[tryout.id]}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color={palette.textSecondary}
+                        >
+                          Nilai Terbaik
+                        </Typography>
+                      </Box>
+                    )}
+                </Box>
+
+                <Stack
+                  direction={isMobile ? 'column' : 'row'}
+                  spacing={2}
+                  sx={{ width: isMobile ? '100%' : 'auto' }}
+                >
+                  <Button
+                    variant="contained"
+                    onClick={() => handleTryoutClick(tryout)}
+                    sx={{ backgroundColor: palette.primaryLight,'&:hover': {
+      backgroundColor: palette.primaryDark, // ganti warna saat hover
+    }, }}
+                  >
+                    Buka Tryout
                   </Button>
-                )}
-              </Stack>
-            </Paper>
-          ))}
+
+                  {tryout.pdf_url && (
+                    <Button
+                      variant="contained"
+                      disabled={!attempts[tryout.id]}
+                      onClick={() => handleOpenPdf(tryout.id)}
+                      sx={{
+                        color: palette.primaryContrastText,
+                        bgcolor: palette.info,
+                        borderColor: palette.info,
+                        '&:hover': {
+      backgroundColor: palette.info, // ganti warna saat hover
+    },
+                      }}
+                    >
+                      Buka PDF
+                    </Button>
+                  )}
+                </Stack>
+              </Paper>
+            );
+          })}
         </Stack>
       )}
     </Stack>

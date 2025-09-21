@@ -1,5 +1,5 @@
 // src/components/beranda/soalreview.tsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Card,
   Stack,
@@ -19,6 +19,8 @@ import {
 import CheckIcon from '@mui/icons-material/Check';
 import ClearIcon from '@mui/icons-material/Clear';
 import { InlineMath } from 'react-katex';
+import axios from 'axios';
+import { tokensSet } from '../../theme/tokens';
 
 interface Option {
   id: string;
@@ -57,6 +59,12 @@ interface QuestionFormProps {
   registerQuestionRef?: (id: number, el: HTMLDivElement | null) => void;
   isReview?: boolean;
 }
+
+interface ThemeFromDB {
+  palette: keyof typeof tokensSet;
+}
+
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
 const getFontSize = (size: 'small' | 'normal' | 'large') => {
   switch (size) {
@@ -111,6 +119,29 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
   registerQuestionRef,
   isReview = false,
 }) => {
+  const [themePalette, setThemePalette] = useState(tokensSet.palette1);
+
+  useEffect(() => {
+    const fetchTheme = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const res = await axios.get<ThemeFromDB>(`${API_BASE}/user`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.data?.palette && tokensSet[res.data.palette]) {
+          setThemePalette(tokensSet[res.data.palette]);
+        }
+      } catch (err) {
+        console.error('Gagal ambil tema', err);
+      }
+    };
+
+    void fetchTheme();
+  }, []);
+
   const visibleQuestions = selectedQuestionId
     ? questions.filter((q) => q.id === selectedQuestionId)
     : questions;
@@ -122,7 +153,6 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
   return (
     <Stack spacing={1} sx={{ width: '100%', height: 'auto' }}>
       {visibleQuestions.map((q) => {
-        // nomor soal dihitung dari urutan global di array questions
         const soalNumber = questions.findIndex(x => x.id === q.id) + 1;
         const userAnswer = answers[q.id] || '';
         const isCorrect = q.answerKey && userAnswer === q.answerKey;
@@ -137,24 +167,43 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
               if (registerQuestionRef) registerQuestionRef(q.id, el);
             }}
           >
-            <Card sx={{ borderRadius: 2, boxShadow: 2, mb: 1 }}>
+            <Card
+              sx={{
+                borderRadius: 2,
+                boxShadow: 2,
+                mb: 1,
+                backgroundColor: themePalette.primaryContrastText,
+              }}
+            >
               <CardHeader
                 sx={{
                   py: 1,
                   backgroundColor: userAnswer
                     ? isCorrect
-                      ? '#2e7d32'
-                      : '#d32f2f'
-                    : '#1976d2',
+                      ? themePalette.success
+                      : themePalette.error
+                    : themePalette.primaryDark,
                 }}
                 title={
-                  <Typography variant="subtitle1" fontWeight="bold" color="white">
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight="bold"
+                    color={themePalette.primaryContrastText}
+                  >
                     Soal {soalNumber}
                   </Typography>
                 }
               />
               <CardContent>
-                <Typography variant="body1" sx={{ mb: 2, fontSize: currentFontSize }}>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    mb: 2,
+                    fontSize: currentFontSize,
+                    color: themePalette.btnSecondaryText,
+                    fontWeight: '500',
+                  }}
+                >
                   {parseTextWithMath(q.text)}
                 </Typography>
 
@@ -186,7 +235,10 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
                       <TableHead>
                         <TableRow>
                           {parsedTable.headers.map((header, idx2) => (
-                            <TableCell key={idx2} sx={{ fontWeight: 'bold' }}>
+                            <TableCell
+                              key={idx2}
+                              sx={{ fontWeight: 'bold', color: themePalette.btnSecondaryText }}
+                            >
                               {header}
                             </TableCell>
                           ))}
@@ -197,12 +249,14 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
                           <TableRow key={rIdx}>
                             {row.map((cell, cIdx) =>
                               typeof cell === 'string' ? (
-                                <TableCell key={cIdx}>{cell}</TableCell>
+                                <TableCell key={cIdx} sx={{ color: themePalette.btnSecondaryText }}>
+                                  {cell}
+                                </TableCell>
                               ) : (
                                 <TableCell
                                   key={cIdx}
                                   colSpan={cell.colspan || 1}
-                                  sx={{ textAlign: 'center' }}
+                                  sx={{ textAlign: 'center', color: themePalette.btnSecondaryText }}
                                 >
                                   {cell.value}
                                 </TableCell>
@@ -215,17 +269,23 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
                   </Box>
                 )}
 
-                {/* Pilihan jawaban */}
                 <RadioGroup value={userAnswer}>
                   {q.options.map((opt) => (
                     <FormControlLabel
                       key={opt.id}
                       value={opt.id}
                       disabled={isReview}
-                      control={<Radio disabled={isReview} />}
+                      control={<Radio disabled={isReview}
+                                sx={{
+                                  color: themePalette.primaryLight, // warna default
+                                  '&.Mui-checked': {
+                                    color: themePalette.primaryDark, // warna saat dipilih
+                                  },
+                                }}
+                              />}
                       label={
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography sx={{ fontSize: currentFontSize }}>
+                          <Typography sx={{ fontSize: currentFontSize, color: themePalette.btnSecondaryText, fontWeight:'500' }}>
                             {parseTextWithMath(opt.text)}
                           </Typography>
                           {q.answerKey === opt.id && (

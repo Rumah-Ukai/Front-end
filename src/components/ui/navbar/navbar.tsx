@@ -1,27 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  AppBar, 
-  Drawer, 
-  List, 
-  ListItem, 
-  ListItemText, 
-  Stack, 
-  Typography, 
-  Button, 
-  IconButton, 
-  Menu, 
-  MenuItem, 
-  Divider, 
-  useMediaQuery, 
-  Avatar 
+import {
+  AppBar,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  Stack,
+  Typography,
+  Button,
+  IconButton,
+  Menu,
+  MenuItem,
+  Divider,
+  useMediaQuery,
+  Avatar
 } from '@mui/material';
 import '@fontsource/poppins/300.css';
 import '@fontsource/poppins/400.css';
 import '@fontsource/poppins/500.css';
 import '@fontsource/poppins/700.css';
 import '@fontsource/poppins/800.css';
-import logoTripsel from '../../../assets/logoukai.png';
+import logoTripsel from '../../../assets/icononly.png';
 
 import { useTheme } from '@mui/material/styles';
 import { Menu as MenuIcon } from '@mui/icons-material';
@@ -31,11 +31,20 @@ import foto1 from '../../../assets/fotouser/foto1.png';
 import foto2 from '../../../assets/fotouser/foto2.png';
 import foto3 from '../../../assets/fotouser/foto3.png';
 
+// ✅ Import palet
+import { tokensSet } from '../../../theme/tokens';
+
 const fotoMap: Record<string, string> = {
   foto1,
   foto2,
   foto3,
 };
+
+// ✅ Ambil base URL dari .env (Vite)
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+
+// ✅ Definisikan type key palette
+type PaletteKey = keyof typeof tokensSet;
 
 export default function Navbar() {
   const [isOpaque, setIsOpaque] = useState(false);
@@ -44,6 +53,7 @@ export default function Navbar() {
   const [menuActive, setMenuActive] = useState(false);
   const [userFoto, setUserFoto] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [palette, setPalette] = useState(tokensSet.palette1); // default palette1
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -56,15 +66,23 @@ export default function Navbar() {
       const token = localStorage.getItem('token');
       if (token) {
         try {
-          const response = await fetch('http://localhost:3000/user', {
+          const response = await fetch(`${API_BASE}/user`, {
             method: 'GET',
             headers: {
               Authorization: `Bearer ${token}`,
             },
           });
           const data = await response.json();
-          if (data && data.foto) {
-            setUserFoto(data.foto); // disimpan string dari DB (misal: "foto1")
+
+          if (data) {
+            if (data.foto) {
+              setUserFoto(data.foto);
+            }
+
+            // ✅ Periksa tipe dan pastikan index valid
+            if (data.tema && typeof data.tema === 'string' && data.tema in tokensSet) {
+              setPalette(tokensSet[data.tema as PaletteKey]);
+            }
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
@@ -102,10 +120,6 @@ export default function Navbar() {
     navigate(`/login`);
   };
 
-  const primary = 'red';
-  const secondary = 'black';
-  const bgClr = 'white';
-
   useEffect(() => {
     const handleScroll = () => {
       const scrollTop = window.scrollY;
@@ -122,7 +136,7 @@ export default function Navbar() {
     <AppBar
       position="sticky"
       sx={{
-        backgroundColor: bgClr,
+        backgroundColor: palette.pageBackground,
         transition: 'background-color 0.3s ease-in-out',
         boxShadow: isOpaque ? '0px 4px 20px rgba(0, 0, 0, 0.1)' : 'none',
         padding: { xs: '0px 16px', sm: '0px 20px', md: '0px 30px' },
@@ -146,8 +160,8 @@ export default function Navbar() {
             disableRipple
             onClick={handleBerandamenu}
             sx={{
-              color: secondary,
-              '&:hover': { color: primary, fontWeight: 700 },
+              color: palette.textPrimary,
+              '&:hover': { color: palette.primary, fontWeight: 700 },
               minWidth: 'auto',
               padding: '0px',
             }}
@@ -160,8 +174,8 @@ export default function Navbar() {
             disableRipple
             onClick={handlePaketku}
             sx={{
-              color: secondary,
-              '&:hover': { color: primary, fontWeight: 700 },
+              color: palette.textPrimary,
+              '&:hover': { color: palette.primary, fontWeight: 700 },
               minWidth: 'auto',
               padding: '0px',
             }}
@@ -174,8 +188,8 @@ export default function Navbar() {
             disableRipple
             onClick={handleProfileMenuOpen}
             sx={{
-              color: 'black',
-              '&:hover': { color: primary, fontWeight: 700 },
+              color: palette.textPrimary,
+              '&:hover': { color: palette.primary, fontWeight: 700 },
               minWidth: 'auto',
               padding: '0px',
               display: 'flex',
@@ -192,16 +206,16 @@ export default function Navbar() {
             elevation={0}
             PaperProps={{
               style: {
-                background: bgClr,
+                background: palette.paper,
                 boxShadow: '0px 4px 4px rgba(0,0,0,0.25)',
                 width: '200px',
                 borderRadius: '0 0 30px 30px',
               },
             }}
           >
-            <MenuItem onClick={handleProfilemenu} sx={{ color: 'black' }}>Profile</MenuItem>
+            <MenuItem onClick={handleProfilemenu} sx={{ color: palette.textPrimary }}>Profile</MenuItem>
             <Divider />
-            <MenuItem onClick={handleLogout} sx={{ color: 'black' }}>Sign out</MenuItem>
+            <MenuItem onClick={handleLogout} sx={{ color: palette.textPrimary }}>Sign out</MenuItem>
           </Menu>
         </Stack>
       )}
@@ -212,7 +226,7 @@ export default function Navbar() {
           <IconButton
             edge="end"
             onClick={handleDrawerToggle}
-            sx={{ color: secondary }}
+            sx={{ color: palette.textPrimary }}
           >
             <MenuIcon fontSize={isSmallMobile ? 'medium' : 'large'} />
           </IconButton>
@@ -220,74 +234,46 @@ export default function Navbar() {
             anchor="right"
             open={drawerOpen}
             onClose={handleDrawerToggle}
-            PaperProps={{ 
-              style: { 
+            PaperProps={{
+              style: {
                 width: isSmallMobile ? '200px' : '250px',
-                paddingTop: '20px'
-              } 
+                paddingTop: '20px',
+                backgroundColor: palette.surface,
+                color: palette.textPrimary,
+              }
             }}
           >
-            <Stack 
-              alignItems="center" 
-              spacing={1} 
-              sx={{ padding: '0px 0' }}
-            >
-              <Avatar src={avatarSrc} alt="User" sx={{ width: 70, height: 70 }} />
+            <Stack alignItems="center" spacing={1} sx={{ padding: '0px 0' }}>
+              <Avatar src={avatarSrc} alt="User" sx={{ width: 70, height: 70}} />
             </Stack>
             <Divider />
 
             <List sx={{ padding: '0' }}>
-              <ListItem 
-                onClick={() => {
-                  handleBerandamenu();
-                  handleDrawerToggle();
-                }}
-                sx={{ padding: '12px 24px' }}
-              >
-                <ListItemText 
-                  primary="Beranda" 
-                  primaryTypographyProps={{ fontSize: isSmallMobile ? '16px' : '18px' }} 
-                />
-              </ListItem>
-              <Divider />
-              <ListItem 
-                onClick={() => {
-                  handlePaketku();
-                  handleDrawerToggle();
-                }}
-                sx={{ padding: '12px 24px' }}
-              >
-                <ListItemText 
-                  primary="Paketku" 
-                  primaryTypographyProps={{ fontSize: isSmallMobile ? '16px' : '18px' }} 
-                />
-              </ListItem>
-              <Divider />
-              <ListItem 
-                onClick={() => {
-                  handleProfilemenu();
-                  handleDrawerToggle();
-                }}
-                sx={{ padding: '12px 24px' }}
-              >
-                <ListItemText 
-                  primary="Profile" 
-                  primaryTypographyProps={{ fontSize: isSmallMobile ? '16px' : '18px' }} 
-                />
-              </ListItem>
-              <Divider />
-              <ListItem 
-                onClick={() => {
-                  handleLogout();
-                  handleDrawerToggle();
-                }}
-                sx={{ padding: '12px 24px' }}
-              >
-                <ListItemText 
-                  primary="Sign out" 
-                  primaryTypographyProps={{ fontSize: isSmallMobile ? '16px' : '18px' }} 
-                />
-              </ListItem>
+              {[
+                { label: 'Beranda', action: handleBerandamenu },
+                { label: 'Paketku', action: handlePaketku },
+                { label: 'Profile', action: handleProfilemenu },
+                { label: 'Sign out', action: handleLogout },
+              ].map((item, idx) => (
+                <div key={idx}>
+                  <ListItem
+                    onClick={() => {
+                      item.action();
+                      handleDrawerToggle();
+                    }}
+                    sx={{ padding: '12px 24px' }}
+                  >
+                    <ListItemText
+                      primary={item.label}
+                      primaryTypographyProps={{
+                        fontSize: isSmallMobile ? '16px' : '18px',
+                        color: palette.textPrimary,
+                      }}
+                    />
+                  </ListItem>
+                  <Divider />
+                </div>
+              ))}
             </List>
           </Drawer>
         </>
