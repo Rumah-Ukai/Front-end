@@ -1,295 +1,353 @@
-import { ChangeEvent, useState } from 'react';
-import { Grid, Stack, Box, Typography, Input, CircularProgress } from '@mui/material'; // Import CircularProgress
-import { Button, InputAdornment, IconButton, Link } from '@mui/material';
+// src/pages/AuthPage.tsx
+import React, { useState } from 'react';
+import {
+  Box,
+  Grid,
+  Stack,
+  Typography,
+  Button,
+  InputAdornment,
+  IconButton,
+  CircularProgress,
+  TextField,
+  Alert,
+} from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import axios from 'axios';
-import { debounce } from 'lodash';
 import bg from '../../assets/logoukai.png';
 import { useNavigate } from 'react-router-dom';
 
-const customInputStyle = {
-  width: '100%',
-  height: '53px',
-  '& input': {
-    borderRadius: '20px',
-    height: '53px',
-    border: '2px solid #04214C', // Apply border directly to the input
-    outline: 'none',
-    padding: '0px 10px'
-  },
-  '& .MuiInputLabel-root': {
-    color: '#6E6C6C', // Initially make label transparent
-    '&.Mui-focused': {
-      color: 'transparent', // Change label color when focused
-    },
-  },
-  '& .MuiOutlinedInput-root': {
-    borderRadius: '20px',
-    '&:hover fieldset': {
-      borderColor: 'red',
-    },
-    '&.Mui-focused fieldset': {
-      borderColor: '#04214C',
-    },
-  },
-  '& .MuiOutlinedInput-root.MuiSelect-root': {
-    borderRadius: '20px',
-    '&:hover fieldset': {
-      borderColor: '#04214C',
-    },
-    '&.Mui-focused fieldset': {
-      borderColor: '#04214C',
-    },
-  },
-};
+type Mode = 'login' | 'register' | 'forgot' | 'verify-register' | 'verify-forgot';
 
-export default function Login() {
-  const [showPassword, setShowPassword] = useState(false);
+export default function AuthPage(): JSX.Element {
+  const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState(''); // used for register & login
+  const [newPassword, setNewPassword] = useState(''); // used for forgot verify
+  const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [loginError, setLoginError] = useState(false); // State to manage login error
+  const [showPassword, setShowPassword] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const debouncedHandleLogin = debounce(handleLogin, 1000);
+  const API_BASE = 'http://localhost:3000'; // sesuaikan jika beda
 
-  const handleEmailChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
-    // Reset loginError state when email changes
-    setLoginError(false);
+  // Helper to clear messages
+  const clearMsgs = () => {
+    setMessage(null);
+    setError(null);
   };
 
-  const handlePasswordChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setPassword(e.target.value);
-    // Reset loginError state when password changes
-    setLoginError(false);
-  };
+  const validateEmail = (value: string) => value.trim().length > 0;
+  const validatePasswordLen = (v: string) => v.length >= 5;
 
-  const handleTogglePasswordVisibility = () => {
-    setShowPassword((prevShowPassword) => !prevShowPassword);
-  };
+  // Nice wrapper for axios errors -> friendly messages
+  const friendlyErrorFromAxios = (err: unknown, fallback = 'Terjadi kesalahan') => {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      const dataErr = err.response?.data?.error || err.response?.data?.message;
 
-  async function handleLogin() {
-  try {
-    setLoading(true);
-
-    // Login request ke backend
-    const response = await axios.post('http://localhost:3000/login', { email, password });
-
-    // Ambil token dari response (user tidak digunakan)
-    const { token } = response.data;
-
-    // Hitung waktu kadaluarsa token (7 hari sesuai backend)
-    const expirationTime = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 hari dalam ms
-
-    // Simpan token dan expiration di localStorage
-    localStorage.setItem('token', token);
-    localStorage.setItem('tokenExpiration', expirationTime.toString());
-
-    // Reset error
-    setLoginError(false);
-
-    // Redirect ke home
-    navigate(`/`);
-  } catch (error: unknown) {
-    // Type guard untuk error axios
-    if (axios.isAxiosError(error)) {
-      console.error(error.response?.data || error.message);
-    } else {
-      console.error(error);
+      // Common server responses mapping
+      if (status === 401) {
+        // unauthorized: either user not found or invalid password
+        if (typeof dataErr === 'string') {
+          if (dataErr.toLowerCase().includes('user not found') || dataErr.toLowerCase().includes('email')) {
+            return 'Email tidak terdaftar';
+          }
+          if (dataErr.toLowerCase().includes('invalid password') || dataErr.toLowerCase().includes('password')) {
+            return 'Password salah';
+          }
+        }
+        return 'Kredensial tidak valid';
+      }
+      if (status === 403) {
+        return (dataErr as string) || 'Akun belum terverifikasi. Cek email Anda.';
+      }
+      if (status === 404) {
+        return (dataErr as string) || 'Data tidak ditemukan';
+      }
+      // if server gives a readable message, show it
+      if (dataErr) return dataErr as string;
+      // otherwise show fallback with status
+      return `Gagal (${status ?? 'error'})`;
     }
-    setLoginError(true);
-  } finally {
-    setLoading(false);
-  }
-}
+    return fallback;
+  };
 
+  // LOGIN
+  const handleLogin = async () => {
+    clearMsgs();
 
+    if (!validateEmail(email) || !password) {
+      setError('Email dan password wajib diisi');
+      return;
+    }
 
-  
-  // // Function to save token and its expiration time in localStorage
-  // const saveTokenToLocalStorage = (token: string, expirationTime: number) => {
-  //   localStorage.setItem('token', token);
-  //   localStorage.setItem('tokenExpiration', expirationTime.toString());
-  // };  
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_BASE}/login`, { email, password });
+      const { token } = res.data;
+      localStorage.setItem('token', token);
+      setMessage('Login berhasil — mengalihkan...');
+      setTimeout(() => navigate('/'), 600);
+    } catch (err: unknown) {
+      const friendly = friendlyErrorFromAxios(err, 'Gagal login');
+      setError(friendly);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // REGISTER step 1 -> send code
+  const handleRegister = async () => {
+    clearMsgs();
+
+    if (!validateEmail(email) || !validatePasswordLen(password)) {
+      setError('Email wajib diisi dan password minimal 5 karakter');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await axios.post(`${API_BASE}/register`, { email, password, role: 'user' });
+
+      // info message about email arrival time
+      setMessage('Kode verifikasi dikirim. Mungkin tiba dalam beberapa menit — cek folder spam jika perlu.');
+      setMode('verify-register');
+    } catch (err: unknown) {
+      const friendly = friendlyErrorFromAxios(err, 'Gagal mengirim kode registrasi');
+      setError(friendly);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // REGISTER verify
+  const handleRegisterVerify = async () => {
+    clearMsgs();
+
+    if (!code) {
+      setError('Masukkan kode verifikasi');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_BASE}/register/verify`, { email, code });
+      const { token } = res.data;
+      localStorage.setItem('token', token);
+      setMessage('Registrasi berhasil. Anda otomatis login.');
+      setTimeout(() => navigate('/'), 700);
+    } catch (err: unknown) {
+      const friendly = friendlyErrorFromAxios(err, 'Gagal verifikasi registrasi');
+      setError(friendly);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // FORGOT step 1 send code
+  const handleForgotSend = async () => {
+    clearMsgs();
+    if (!validateEmail(email)) {
+      setError('Masukkan email yang terdaftar');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await axios.post(`${API_BASE}/forgot`, { email });
+      setMessage('Kode reset dikirim. Mungkin tiba dalam beberapa menit — cek folder spam jika perlu.');
+      setMode('verify-forgot');
+    } catch (err: unknown) {
+      const friendly = friendlyErrorFromAxios(err, 'Gagal mengirim kode reset');
+      setError(friendly);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // FORGOT verify -> set new password
+  const handleForgotVerify = async () => {
+    clearMsgs();
+    if (!code || !validatePasswordLen(newPassword)) {
+      setError('Kode dan password baru (minimal 5 karakter) wajib diisi');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await axios.post(`${API_BASE}/forgot/verify`, { email, code, newPassword });
+      setMessage('Password berhasil diganti. Silakan login.');
+      setMode('login');
+      // clear password fields
+      setPassword('');
+      setNewPassword('');
+      setCode('');
+    } catch (err: unknown) {
+      const friendly = friendlyErrorFromAxios(err, 'Gagal mengganti password');
+      setError(friendly);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // UI helpers
+  const isEmailReadOnly = mode === 'verify-register' || mode === 'verify-forgot';
 
   return (
-    <Box>
+    <Box sx={{ width: '100%', minHeight: '100vh' }}>
       <Grid container sx={{ height: '100vh' }}>
-        <Grid item xs={12} md={6} sx={{ maxHeight: '100%' }}>
-          <Stack height={'100%'} justifyContent={'center'} alignItems={'center'}>
-            <Stack direction={'column'} sx={{ display: { md: 'flex' },width:'100%', height: '100%', justifyContent:'center',alignContent:'center', alignItems:'center' }}>
-              <img
-                src={bg}
-                alt=""
-                width="100%"
-                style={{maxWidth:'550px', maxHeight:'550px'}}
-              />
-
-            </Stack>
+        <Grid item xs={12} md={6} sx={{ background: '#fff' }}>
+          <Stack height="100%" justifyContent="center" alignItems="center">
+            <img src={bg} alt="logo" style={{ maxWidth: 550, width: '100%' }} />
           </Stack>
         </Grid>
-        <Grid
-          container
-          justifyContent="center"
-          alignItems="center"
-          xs={12}
-          md={6}
-          px={8}
-          py={2}
-          sx={{
-            bgcolor: 'white',
-            borderTopLeftRadius: 0,
-            paddingLeft:'0px',
-            borderBottomLeftRadius: 0,
-            '@media screen and (max-width: 899px)': {
-              borderTopRightRadius: 0,
-              borderBottomLeftRadius: 0,
-              padding: '2rem',
-            },
-          }}
-        >
-          <Stack sx={{ width: '100%' }} spacing={10} maxHeight={'700px'}>
-            <Stack spacing={1}>
-              <Typography sx={{
-                fontWeight: 700,
-                fontSize: '42px',
-                color:'#FF010C',
-              }}>
-                Masuk
-              </Typography>
-              <Typography sx={{
-                fontWeight: 500,
-                fontSize: '32px',
-                color:'#FF010C',
-              }}>
-                Selamat datang di Rumah Ukai
-              </Typography>
-            </Stack>
-            <Stack spacing={2}>
-              <Typography sx={{
-                fontWeight: 500,
-                fontSize: '24px',
-                color:'#04214C'
-              }}>
-                Email
-              </Typography>
-              <Input
-                disableUnderline
-                placeholder="Email"
-                sx={customInputStyle}
-                style={{fontSize:'22px', color:'#04214C'}}
-                inputProps={{
-                  'aria-label': 'description',
-                }}
-                value={email}
-                onChange={handleEmailChange}
-                
-              />
 
-                <Typography sx={{
-                  fontWeight: 500,
-                  fontSize: '16px',
-                  color:'transparent'
-                }}>
-                  *Email atau password salah
+        <Grid item xs={12} md={6} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 6 }}>
+          <Box sx={{ width: '100%', maxWidth: 520 }}>
+            <Stack spacing={3}>
+              <Stack>
+                <Typography variant="h3" sx={{ color: '#FF010C', fontWeight: 700 }}>
+                  {mode === 'login' && 'Masuk'}
+                  {mode === 'register' && 'Daftar'}
+                  {mode === 'forgot' && 'Lupa Password'}
+                  {mode === 'verify-register' && 'Verifikasi Registrasi'}
+                  {mode === 'verify-forgot' && 'Reset Password'}
                 </Typography>
+                <Typography variant="subtitle1" sx={{ color: '#04214C' }}>
+                  {mode === 'login' && 'Selamat datang di Rumah Ukai'}
+                  {mode === 'register' && 'Isi email & password untuk membuat akun'}
+                  {mode === 'forgot' && 'Masukkan email untuk menerima kode reset'}
+                  {mode === 'verify-register' && 'Masukkan kode verifikasi yang dikirim ke email Anda (email tidak dapat diubah)'}
+                  {mode === 'verify-forgot' && 'Masukkan kode dan password baru (email tidak dapat diubah)'}
+                </Typography>
+              </Stack>
 
-              <Typography sx={{
-                fontWeight: 500,
-                fontSize: '24px',
-                color:'#04214C'
-              }}>
-                Password
-              </Typography>
-              <Input
-                disableUnderline
-                id="password"
-                placeholder="Password"
-                type={showPassword ? 'text' : 'password'}
-                sx={customInputStyle}
-                style={{fontSize:'22px', color:'#04214C'}}
-                inputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={handleTogglePasswordVisibility}
-                        edge="end"
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-                value={password}
-                onChange={handlePasswordChange}
-              />
-              
-                <Typography sx={{
-                  fontWeight: 500,
-                  fontSize: '16px',
-                  color: loginError ? '#FF010C': 'transparent'
-                }}>
-                  *Email atau password salah
-                </Typography>
-                <Link href='/lupa-password' sx={{
-                  textDecoration: 'underline',
-                  fontWeight: 700,
-                  color: '#04214C',
-                }}>
-                  <Typography sx={{
-                    fontWeight:500,
-                    color:'#04214C',
-                    fontSize:'22px',
-                    textAlign:'right'
-                  }}>
-                    Lupa Password
-                  </Typography>
-                </Link>
-            </Stack>
-            <Stack spacing={3} alignItems={'center'} width={'100%'}>
-              <Button
-                disabled={loading} // Disable the button when loading
-                onClick={debouncedHandleLogin} // Use debounced handleLogin
-                sx={{
-                  display: 'flex',
-                  width: '200px',
-                  height: '60px',
-                  padding: '10px 20px',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  borderRadius: '40px',
-                  background: '#FF010C',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  fontFamily: 'Poppins',
-                  fontWeight: 700,
-                  fontSize: '24px',
-                  '&:hover': { background: 'white', color: 'red', boxShadow: '0px 0px 0px 2px red',}
-                }}
-              >
-                {loading ? <CircularProgress size={24} sx={{color:'white'}} /> : 'Masuk'}
-              </Button>
-              <Stack direction={'row'} spacing={1}>
-                <Typography sx={{fontSize:'22px', fontWeight: 500}}>
-                  Belum punya akun?
-                </Typography>
-                <Link href='/register' sx={{
-                  textDecoration: 'underline',
-                  fontWeight: 700,
-                  color: '#FF010C',
-                }}>
-                  <Typography sx={{
-                    fontWeight:700,
-                    color:'#FF010C',
-                    fontSize:'22px',
-                  }}>
-                    Daftar
-                  </Typography>
-                </Link>
+              {/* ALERTS */}
+              {message && <Alert severity="success">{message}</Alert>}
+              {error && <Alert severity="error">{error}</Alert>}
+
+              {/* FORM */}
+              <Stack spacing={2}>
+                {/* Email always shown but readonly in verify modes */}
+                <TextField
+                  label="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  fullWidth
+                  size="medium"
+                  InputProps={{
+                    readOnly: isEmailReadOnly,
+                  }}
+                />
+
+                {/* Login & Register password */}
+                {(mode === 'login' || mode === 'register') && (
+                  <TextField
+                    label="Password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    fullWidth
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton onClick={() => setShowPassword((s) => !s)} edge="end">
+                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                    helperText={mode === 'register' ? 'Password minimal 5 karakter' : undefined}
+                    error={mode === 'register' && password.length > 0 && !validatePasswordLen(password)}
+                  />
+                )}
+
+                {/* Verify / forgot fields */}
+                {mode === 'verify-register' && (
+                  <TextField
+                    label="Kode verifikasi"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    fullWidth
+                    helperText="Masukkan kode 6-digit yang dikirim ke email Anda"
+                  />
+                )}
+
+                {mode === 'verify-forgot' && (
+                  <>
+                    <TextField label="Kode verifikasi" value={code} onChange={(e) => setCode(e.target.value)} fullWidth />
+                    <TextField
+                      label="Password baru"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      fullWidth
+                      helperText="Minimal 5 karakter"
+                      error={newPassword.length > 0 && !validatePasswordLen(newPassword)}
+                    />
+                  </>
+                )}
+              </Stack>
+
+              {/* ACTION BUTTONS */}
+              <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+                {mode === 'login' && (
+                  <>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      onClick={handleLogin}
+                      disabled={loading}
+                      sx={{ px: 4 }}
+                    >
+                      {loading ? <CircularProgress size={20} color="inherit" /> : 'Masuk'}
+                    </Button>
+                    <Button onClick={() => { clearMsgs(); setMode('forgot'); }}>Lupa Password</Button>
+                    <Button onClick={() => { clearMsgs(); setMode('register'); }}>Daftar</Button>
+                  </>
+                )}
+
+                {mode === 'register' && (
+                  <>
+                    <Button variant="contained" color="error" onClick={handleRegister} disabled={loading}>
+                      {loading ? <CircularProgress size={20} color="inherit" /> : 'Kirim Kode (Daftar)'}
+                    </Button>
+                    <Button onClick={() => { clearMsgs(); setMode('login'); }}>Kembali ke Login</Button>
+                  </>
+                )}
+
+                {mode === 'verify-register' && (
+                  <>
+                    <Button variant="contained" color="error" onClick={handleRegisterVerify} disabled={loading}>
+                      {loading ? <CircularProgress size={20} color="inherit" /> : 'Verifikasi & Masuk'}
+                    </Button>
+                    <Button onClick={() => { clearMsgs(); setMode('register'); }}>Kembali</Button>
+                  </>
+                )}
+
+                {mode === 'forgot' && (
+                  <>
+                    <Button variant="contained" color="error" onClick={handleForgotSend} disabled={loading}>
+                      {loading ? <CircularProgress size={20} color="inherit" /> : 'Kirim Kode'}
+                    </Button>
+                    <Button onClick={() => { clearMsgs(); setMode('login'); }}>Kembali</Button>
+                  </>
+                )}
+
+                {mode === 'verify-forgot' && (
+                  <>
+                    <Button variant="contained" color="error" onClick={handleForgotVerify} disabled={loading}>
+                      {loading ? <CircularProgress size={20} color="inherit" /> : 'Ganti Password'}
+                    </Button>
+                    <Button onClick={() => { clearMsgs(); setMode('login'); }}>Kembali</Button>
+                  </>
+                )}
               </Stack>
             </Stack>
-          </Stack>
+          </Box>
         </Grid>
       </Grid>
     </Box>
