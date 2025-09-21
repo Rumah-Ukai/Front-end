@@ -76,62 +76,62 @@ const router = createBrowserRouter([
   {
     path: '/',
     element: (
-      // <ProtectedRoute>
+      <ProtectedRoute>
         <>
           <Navbar />
           <Beranda />
           <Footer />
         </>
-      // </ProtectedRoute>
+      </ProtectedRoute>
     )
   },
   {
     path: '/quiz',
     element: (
-      // <ProtectedRoute>
+      <ProtectedRoute>
       <>
         {/* <Navbar /> */}
         <Quiz />
         {/* <Footer/> */}
       </>
-      // </ProtectedRoute>
+      </ProtectedRoute>
     )
   },
   {
     path: '/review',
     element: (
-      // <ProtectedRoute>
+      <ProtectedRoute>
       <>
         {/* <Navbar /> */}
         <Quizreview />
         {/* <Footer/> */}
       </>
-      // </ProtectedRoute>
+     </ProtectedRoute>
     )
   },
   {
     path: '/daftar-paketku',
     element: (
-      // <ProtectedRoute>
+      <ProtectedRoute>
       <>
         <Navbar />
         <Paketku />
         <Footer/>
       </>
-      // </ProtectedRoute>
+      </ProtectedRoute>
     )
   },
   
   {
     path: '/cari-oleh-oleh',
     element: (
-      // <ProtectedRoute>
+      <ProtectedRoute>
       <>
         <Navbarwhite />
         <Oleh />
         <Footer/>
       </>
-      // </ProtectedRoute>
+     </ProtectedRoute>
     )
   },
   {
@@ -150,51 +150,51 @@ const router = createBrowserRouter([
   {
     path: '/pdfviewer',
     element: (
-      // <ProtectedRoute>
+      <ProtectedRoute>
       <>
         {/* <Navbar /> */}
         <Pdf />
         {/* <Footer/> */}
       </>
-      // </ProtectedRoute>
+      </ProtectedRoute>
     )
   },
  
   {
     path: '/paketku',
     element: (
-    // <ProtectedRoute>
+    <ProtectedRoute>
     <>
     <Navbar />
     <Paket/>
     <Footer/>
     </>
-    // </ProtectedRoute>
+   </ProtectedRoute>
     )
   
     },
     {
       path: '/tryouts',
       element: (
-        // <ProtectedRoute>
+        <ProtectedRoute>
         <>
           <Navbar/>
           <Quizattempt/>
           <Footer/>
         </>
-        // </ProtectedRoute>
+        </ProtectedRoute>
       )
     },
    
     {
       path: '/profile',
       element: (
-        // <ProtectedRoute>
+        <ProtectedRoute>
         <>
           <Navbar/>
           <Profile />
         </>
-        // </ProtectedRoute>
+        </ProtectedRoute>
       )
     },
     {

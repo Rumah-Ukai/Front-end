@@ -206,7 +206,7 @@ export default function Navbar() {
             elevation={0}
             PaperProps={{
               style: {
-                background: palette.paper,
+                background: palette.primary,
                 boxShadow: '0px 4px 4px rgba(0,0,0,0.25)',
                 width: '200px',
                 borderRadius: '0 0 30px 30px',
@@ -238,7 +238,7 @@ export default function Navbar() {
               style: {
                 width: isSmallMobile ? '200px' : '250px',
                 paddingTop: '20px',
-                backgroundColor: palette.surface,
+                backgroundColor: palette.primary,
                 color: palette.textPrimary,
               }
             }}

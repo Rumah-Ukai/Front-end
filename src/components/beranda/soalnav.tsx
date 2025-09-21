@@ -73,7 +73,7 @@ export default function QuizNavigation({
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const res = await axios.get<ThemeFromDB>(`${API_BASE}/user/theme`, {
+        const res = await axios.get<ThemeFromDB>(`${API_BASE}/user`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

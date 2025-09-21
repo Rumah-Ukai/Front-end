@@ -1,43 +1,60 @@
+// src/routes/ProtectedRoute.tsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const isAuthenticated = async (): Promise<boolean> => {
-  const token = localStorage.getItem('token');
-  const tokenExpiration = localStorage.getItem('tokenExpiration');
+// ---------------------
+// Helper functions
+// ---------------------
+const getToken = () => localStorage.getItem('token');
+const getTokenExpiration = () => localStorage.getItem('tokenExpiration');
+
+const checkAuth = async (): Promise<boolean> => {
+  const token = getToken();
+  const tokenExpiration = getTokenExpiration();
 
   if (!token || !tokenExpiration || Date.now() >= parseInt(tokenExpiration)) {
     return false;
   }
 
   try {
-    const response = await fetch('http://localhost:3000/user', {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     return response.ok;
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error('Auth check failed:', err);
     return false;
   }
 };
 
+// ---------------------
+// ProtectedRoute component
+// ---------------------
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const check = async () => {
-      const authenticated = await isAuthenticated();
-      if (!authenticated) navigate('/login');
-      setIsCheckingAuth(false);
+    const verify = async () => {
+      const auth = await checkAuth();
+      if (!auth) navigate('/login', { replace: true });
+      setLoading(false);
     };
-    check();
+    verify();
   }, [navigate]);
 
-  if (isCheckingAuth) return <div>Loading...</div>;
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }}>
+        Loading...
+      </div>
+    );
+  }
+
   return <>{children}</>;
 };
 
