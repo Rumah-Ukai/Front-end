@@ -161,7 +161,7 @@ export default function Navbar() {
             onClick={handleBerandamenu}
             sx={{
               color: palette.textPrimary,
-              '&:hover': { color: palette.primary, fontWeight: 700 },
+              '&:hover': { color: palette.primaryDark, fontWeight: 700 },
               minWidth: 'auto',
               padding: '0px',
             }}
@@ -175,7 +175,7 @@ export default function Navbar() {
             onClick={handlePaketku}
             sx={{
               color: palette.textPrimary,
-              '&:hover': { color: palette.primary, fontWeight: 700 },
+              '&:hover': { color: palette.primaryDark, fontWeight: 700 },
               minWidth: 'auto',
               padding: '0px',
             }}
