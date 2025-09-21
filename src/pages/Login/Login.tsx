@@ -162,7 +162,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
     setLoading(true);
     try {
-      await axios.post(`${API_BASE}/forgot`, { email });
+      await axios.post(`${API_BASE}/user/send-code`, { email });
       setMessage('Kode reset dikirim. Mungkin tiba dalam beberapa menit — cek folder spam jika perlu.');
       setMode('verify-forgot');
     } catch (err: unknown) {
@@ -183,7 +183,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
     setLoading(true);
     try {
-      await axios.post(`${API_BASE}/forgot/verify`, { email, code, newPassword });
+      await axios.post(`${API_BASE}/user/verify-code`, { email, code, newPassword });
       setMessage('Password berhasil diganti. Silakan login.');
       setMode('login');
       // clear password fields
@@ -358,19 +358,90 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     fullWidth
+                    sx={{
+    input: { color: 'white' }, // teks input putih normal
+    '& .MuiInputBase-input::placeholder': {
+      color: 'white',
+      opacity: 0.8,
+    },
+    '& .MuiOutlinedInput-root': {
+      '& fieldset': { borderColor: 'white' },
+      '&:hover fieldset': { borderColor: 'white' },
+      '&.Mui-focused fieldset': { borderColor: 'white' },
+    },
+    '& .MuiInputLabel-root': {
+      color: 'white',
+    },
+    '& .MuiInputLabel-root.Mui-focused': {
+      color: 'white',
+    },
+    // fix autofill
+    '& input:-webkit-autofill': {
+      WebkitBoxShadow: '0 0 0 1000px #64483D inset', // ganti #121212 sesuai background form kamu
+      WebkitTextFillColor: 'white', // tetap putih
+      caretColor: 'white',
+    },
+  }}
                     helperText="Masukkan kode 6-digit yang dikirim ke email Anda"
                   />
                 )}
 
                 {mode === 'verify-forgot' && (
                   <>
-                    <TextField label="Kode verifikasi" value={code} onChange={(e) => setCode(e.target.value)} fullWidth />
+                    <TextField  sx={{
+    input: { color: 'white' }, // teks input putih normal
+    '& .MuiInputBase-input::placeholder': {
+      color: 'white',
+      opacity: 0.8,
+    },
+    '& .MuiOutlinedInput-root': {
+      '& fieldset': { borderColor: 'white' },
+      '&:hover fieldset': { borderColor: 'white' },
+      '&.Mui-focused fieldset': { borderColor: 'white' },
+    },
+    '& .MuiInputLabel-root': {
+      color: 'white',
+    },
+    '& .MuiInputLabel-root.Mui-focused': {
+      color: 'white',
+    },
+    // fix autofill
+    '& input:-webkit-autofill': {
+      WebkitBoxShadow: '0 0 0 1000px #64483D inset', // ganti #121212 sesuai background form kamu
+      WebkitTextFillColor: 'white', // tetap putih
+      caretColor: 'white',
+    },
+  }} label="Kode verifikasi" value={code} onChange={(e) => setCode(e.target.value)} fullWidth />
                     <TextField
                       label="Password baru"
                       type="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       fullWidth
+                       sx={{
+    input: { color: 'white' }, // teks input putih normal
+    '& .MuiInputBase-input::placeholder': {
+      color: 'white',
+      opacity: 0.8,
+    },
+    '& .MuiOutlinedInput-root': {
+      '& fieldset': { borderColor: 'white' },
+      '&:hover fieldset': { borderColor: 'white' },
+      '&.Mui-focused fieldset': { borderColor: 'white' },
+    },
+    '& .MuiInputLabel-root': {
+      color: 'white',
+    },
+    '& .MuiInputLabel-root.Mui-focused': {
+      color: 'white',
+    },
+    // fix autofill
+    '& input:-webkit-autofill': {
+      WebkitBoxShadow: '0 0 0 1000px #64483D inset', // ganti #121212 sesuai background form kamu
+      WebkitTextFillColor: 'white', // tetap putih
+      caretColor: 'white',
+    },
+  }}
                       helperText="Minimal 5 karakter"
                       error={newPassword.length > 0 && !validatePasswordLen(newPassword)}
                     />

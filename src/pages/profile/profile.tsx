@@ -16,13 +16,12 @@ import {
   Snackbar,
   Stack,
   CircularProgress,
-  IconButton,
+
   InputAdornment,
   Link,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
 import axios from 'axios';
 import { tokensSet } from '../../theme/tokens';
 import foto1 from '../../assets/fotouser/foto1.png';
@@ -52,7 +51,6 @@ export default function Profile(): JSX.Element {
 
   const [password, setPassword] = useState('');
   const [sendingPassword, setSendingPassword] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   const [verificationMode, setVerificationMode] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
@@ -158,45 +156,65 @@ export default function Profile(): JSX.Element {
   };
 
   const handleSendPasswordVerification = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return setSnackbar({ open: true, message: 'Anda harus login', severity: 'error' });
+  const token = localStorage.getItem('token');
+  if (!token) return setSnackbar({ open: true, message: 'Anda harus login', severity: 'error' });
 
-    setSendingPassword(true);
-    try {
-      const res = await fetch(`${API_BASE}/user/send-code`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
-      if (!res.ok) throw new Error(`Server: ${res.status}`);
-      setSnackbar({ open: true, message: 'Email verifikasi password dikirim', severity: 'success' });
-      setVerificationMode(true);
-      setTimer(60);
-    } catch (err) {
-      console.error(err);
-      setSnackbar({ open: true, message: 'Gagal mengirim email verifikasi', severity: 'error' });
-    } finally {
-      setSendingPassword(false);
-    }
-  };
+  if (!email) return setSnackbar({ open: true, message: 'Email tidak tersedia', severity: 'error' });
 
-  const handleConfirmPassword = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return setSnackbar({ open: true, message: 'Anda harus login', severity: 'error' });
+  setSendingPassword(true);
+  try {
+    const res = await fetch(`${API_BASE}/user/send-code`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }), // <-- kirim email
+    });
+    if (!res.ok) throw new Error(`Server: ${res.status}`);
+    setSnackbar({ open: true, message: 'Email verifikasi password dikirim', severity: 'success' });
+    setVerificationMode(true);
+    setTimer(60);
+  } catch (err) {
+    console.error(err);
+    setSnackbar({ open: true, message: 'Gagal mengirim email verifikasi', severity: 'error' });
+  } finally {
+    setSendingPassword(false);
+  }
+};
 
-    try {
-      const res = await fetch(`${API_BASE}/user/verify-code`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: verificationCode, newPassword: password }),
-      });
-      if (!res.ok) throw new Error(`Server: ${res.status}`);
+
+const handleConfirmPassword = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) return setSnackbar({ open: true, message: 'Anda harus login', severity: 'error' });
+  if (!email) return setSnackbar({ open: true, message: 'Email tidak tersedia', severity: 'error' });
+  if (!verificationCode) return setSnackbar({ open: true, message: 'Kode verifikasi tidak boleh kosong', severity: 'error' });
+  if (!validatePasswordLen(password)) return setSnackbar({ open: true, message: 'Password minimal 5 karakter', severity: 'error' });
+
+  try {
+    const res = await fetch(`${API_BASE}/user/verify-code`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code: verificationCode, newPassword: password }),
+    });
+
+    if (!res.ok) {
       const data = await res.json();
-      setSnackbar({ open: true, message: data.message || 'Verifikasi berhasil', severity: 'success' });
-      setVerificationMode(false);
-      setVerificationCode('');
-      setPassword('');
-    } catch (err) {
-      console.error(err);
-      setSnackbar({ open: true, message: 'Kode verifikasi salah atau expired', severity: 'error' });
+      throw new Error(data.error || `Server: ${res.status}`);
     }
-  };
+
+    const data = await res.json();
+    setSnackbar({ open: true, message: data.message || 'Verifikasi berhasil', severity: 'success' });
+    setVerificationMode(false);
+    setVerificationCode('');
+    setPassword('');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (err: any) {
+    console.error(err);
+    setSnackbar({ open: true, message: err.message || 'Kode verifikasi salah atau expired', severity: 'error' });
+  }
+};
+
 
   const handleResendCode = () => handleSendPasswordVerification();
   const handleLogout = () => {
@@ -242,7 +260,7 @@ export default function Profile(): JSX.Element {
 
               <TextField
                 label="Password Baru"
-                type={showPassword ? 'text' : 'password'}
+                type={ 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 fullWidth
@@ -254,9 +272,9 @@ export default function Profile(): JSX.Element {
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
-                      <IconButton onClick={() => setShowPassword((s) => !s)} edge="end">
+                      {/* <IconButton onClick={() => setShowPassword((s) => !s)} edge="end">
                         {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
+                      </IconButton> */}
                     </InputAdornment>
                   ),
                 }}
@@ -316,7 +334,7 @@ export default function Profile(): JSX.Element {
                       Kirim ulang kode dalam {timer}s
                     </Typography>
                   ) : (
-                    <Link component="button" variant="body2" onClick={handleResendCode} sx={{ color: palette.primary }}>
+                    <Link component="button" variant="body2" onClick={handleResendCode} sx={{ color: palette.textSecondary }}>
                       Kirim ulang kode
                     </Link>
                   )}
