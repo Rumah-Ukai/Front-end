@@ -34,7 +34,7 @@ export default function AuthPage(): JSX.Element {
 // di dalam komponen AuthPage
 const theme = useTheme();
 const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_API_BASE ;
 
   // Helper to clear messages
   const clearMsgs = () => {
