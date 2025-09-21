@@ -7,7 +7,7 @@ import {
   Typography,
   Button,
   InputAdornment,
-  IconButton,
+
   CircularProgress,
   TextField,
   Alert,
@@ -15,7 +15,6 @@ import {
   useMediaQuery,
 
 } from '@mui/material';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
 import axios from 'axios';
 import bg from '../../assets/logoukai.png';
 import { useNavigate } from 'react-router-dom';
@@ -29,7 +28,6 @@ export default function AuthPage(): JSX.Element {
   const [newPassword, setNewPassword] = useState(''); // used for forgot verify
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -330,16 +328,14 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
   '& .MuiInputLabel-root.Mui-focused': { color: 'white' },
 }}
 
-                    type={showPassword ? 'text' : 'password'}
+                    type={'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     fullWidth
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end" >
-                          <IconButton onClick={() => setShowPassword((s) => !s)} edge="end">
-                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                          </IconButton>
+                         
                         </InputAdornment>
                       ),
                     }}
