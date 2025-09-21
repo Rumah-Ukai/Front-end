@@ -8,6 +8,8 @@ import { useNavigate } from 'react-router-dom';
 const getToken = () => localStorage.getItem('token');
 const getTokenExpiration = () => localStorage.getItem('tokenExpiration');
 
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+
 const checkAuth = async (): Promise<boolean> => {
   const token = getToken();
   const tokenExpiration = getTokenExpiration();
@@ -17,9 +19,10 @@ const checkAuth = async (): Promise<boolean> => {
   }
 
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user`, {
+    const response = await fetch(`${API_BASE}/user`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    // console.log('Auth check response:', response.status);
     return response.ok;
   } catch (err) {
     console.error('Auth check failed:', err);
@@ -49,7 +52,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          marginTop: 100,
+          fontSize: 18,
+        }}
+      >
         Loading...
       </div>
     );
