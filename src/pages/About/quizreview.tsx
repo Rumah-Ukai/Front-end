@@ -525,12 +525,12 @@ export default function QuizReview(): JSX.Element {
                 size="large"
                 onClick={handleExit}
                 sx={{
-                  backgroundColor: themePalette.primary,
+                  backgroundColor: themePalette.primaryLight,
                   color: themePalette.primaryContrastText,
                   '&:hover': { backgroundColor: themePalette.primaryDark },
                 }}
               >
-                Exit
+                Keluar
               </Button>
             </>
           ) : (
