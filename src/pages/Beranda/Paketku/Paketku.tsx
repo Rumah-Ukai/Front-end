@@ -65,7 +65,7 @@ export default function Paketku() {
             width: '100%',
           }}
         >
-          Paket Try out
+          Paketku
         </Typography>
 
         <Typography
@@ -77,7 +77,7 @@ export default function Paketku() {
             width: '100%',
           }}
         >
-          Paket try out yang tersedia
+          Paket yang kamu miliki
         </Typography>
       </Stack>
 
