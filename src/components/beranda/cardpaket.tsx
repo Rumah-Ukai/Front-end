@@ -331,7 +331,7 @@ export default function PaketGrid() {
       } else {
         // fallback
         setSelectedPaket(null);
-        setSnackbarMsg('Proses berhasil. Periksa akun Anda.');
+        setSnackbarMsg('Proses berhasil. Periksa paketku atau refresh');
         setSnackbarOpen(true);
       }
     } catch (error) {
