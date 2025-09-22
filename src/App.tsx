@@ -23,7 +23,7 @@ import { AddWisata } from './pages/Admin/Wisata/add';
 import { AdminOleh } from './pages/Admin/Oleh';
 import { InputOleh } from './pages/Admin/Oleh/input';
 import { AddOleh } from './pages/Admin/Oleh/add';
-import Footer from './components/ui/footer';
+// import Footer from './components/ui/footer';
 import { Beranda } from './pages/Beranda';
 import { Login } from './pages/Login';
 import { LoginAdmin } from './pages/Admin/Login';
@@ -80,7 +80,7 @@ const router = createBrowserRouter([
         <>
           <Navbar />
           <Beranda />
-          <Footer />
+          {/* <Footer /> */}
         </>
       </ProtectedRoute>
     )
@@ -116,7 +116,7 @@ const router = createBrowserRouter([
       <>
         <Navbar />
         <Paketku />
-        <Footer/>
+        {/* <Footer/> */}
       </>
       </ProtectedRoute>
     )
@@ -129,7 +129,7 @@ const router = createBrowserRouter([
       <>
         <Navbarwhite />
         <Oleh />
-        <Footer/>
+        {/* <Footer/> */}
       </>
      </ProtectedRoute>
     )
@@ -141,7 +141,7 @@ const router = createBrowserRouter([
       <>
         <Navbar />
         <OlehBali />
-        <Footer/>
+        {/* <Footer/> */}
       </>
       // </ProtectedRoute>
     )
@@ -167,7 +167,7 @@ const router = createBrowserRouter([
     <>
     <Navbar />
     <Paket/>
-    <Footer/>
+    {/* <Footer/> */}
     </>
    </ProtectedRoute>
     )
@@ -180,7 +180,7 @@ const router = createBrowserRouter([
         <>
           <Navbar/>
           <Quizattempt/>
-          <Footer/>
+          {/* <Footer/> */}
         </>
         </ProtectedRoute>
       )
