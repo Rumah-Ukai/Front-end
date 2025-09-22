@@ -2,37 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// ---------------------
-// Helper functions
-// ---------------------
-const getToken = () => localStorage.getItem('token');
-const getTokenExpiration = () => localStorage.getItem('tokenExpiration');
-
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
-const checkAuth = async (): Promise<boolean> => {
-  const token = getToken();
-  const tokenExpiration = getTokenExpiration();
-
-  if (!token || !tokenExpiration || Date.now() >= parseInt(tokenExpiration)) {
-    return false;
-  }
-
-  try {
-    const response = await fetch(`${API_BASE}/user`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    // console.log('Auth check response:', response.status);
-    return response.ok;
-  } catch (err) {
-    console.error('Auth check failed:', err);
-    return false;
-  }
-};
-
-// ---------------------
-// ProtectedRoute component
-// ---------------------
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
@@ -42,12 +13,37 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const verify = async () => {
-      const auth = await checkAuth();
-      if (!auth) navigate('/login', { replace: true });
-      setLoading(false);
+    const fetchUserData = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/user`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          localStorage.removeItem('token');
+          navigate('/login', { replace: true });
+          return;
+        }
+
+        // kalau berhasil, user dianggap authenticated
+        setLoading(false);
+      } catch (error) {
+        console.error('Error verifying token:', error);
+        localStorage.removeItem('token');
+        navigate('/login', { replace: true });
+      }
     };
-    verify();
+
+    fetchUserData();
   }, [navigate]);
 
   if (loading) {
