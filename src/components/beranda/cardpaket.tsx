@@ -345,41 +345,60 @@ export default function PaketGrid() {
   return (
     <Stack sx={{ width: '100%', alignItems: 'flex-start' }}>
       <Grid container spacing={2} sx={{ width: '100%' }}>
-        {currentItems.map((item) => (
-          <Grid item key={item.id} xs={12} sm={6} md={4}>
-            <Card
+        {currentItems.length === 0 ? (
+          <Grid item xs={12}>
+            <Stack
               sx={{
-                bgcolor: palette.primary,
+                width: '100%',
+                height: 200,
+                alignItems: 'center',
+                justifyContent: 'center',
                 borderRadius: 3,
-                cursor: 'pointer',
-                transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-                '&:hover': {
-                  transform: 'scale(1.03)',
-                  boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
-                },
+                bgcolor: palette.primary + '22',
               }}
-              onClick={() => setSelectedPaket(item)}
             >
-              {item.image ? (
-                <CardMedia component="img" height="140" image={item.image} alt={item.name} />
-              ) : (
-                <PackageCard title={item.name} palette={palette} />
-              )}
-
-              <CardContent>
-                <Typography variant="h6" sx={{ fontWeight: 600, color: palette.primaryContrastText }}>
-                  {item.name}
-                </Typography>
-                <Typography
-                  variant="h6"
-                  sx={{ fontWeight: 700, mt: 1, color: palette.primaryContrastText }}
-                >
-                  {formatPrice(item.price)}
-                </Typography>
-              </CardContent>
-            </Card>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: palette.primaryDark }}>
+                Tidak ada paket yang tersedia
+              </Typography>
+            </Stack>
           </Grid>
-        ))}
+        ) : (
+          currentItems.map((item) => (
+            <Grid item key={item.id} xs={12} sm={6} md={4}>
+              <Card
+                sx={{
+                  bgcolor: palette.primary,
+                  borderRadius: 3,
+                  cursor: 'pointer',
+                  transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                  '&:hover': {
+                    transform: 'scale(1.03)',
+                    boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
+                  },
+                }}
+                onClick={() => setSelectedPaket(item)}
+              >
+                {item.image ? (
+                  <CardMedia component="img" height="140" image={item.image} alt={item.name} />
+                ) : (
+                  <PackageCard title={item.name} palette={palette} />
+                )}
+
+                <CardContent>
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: palette.primaryContrastText }}>
+                    {item.name}
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    sx={{ fontWeight: 700, mt: 1, color: palette.primaryContrastText }}
+                  >
+                    {formatPrice(item.price)}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))
+        )}
       </Grid>
 
       {totalPages > 1 && (

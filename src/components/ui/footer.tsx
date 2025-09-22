@@ -6,14 +6,10 @@ import '@fontsource/poppins/700.css';
 import '@fontsource/poppins/800.css';
 import logoTripsel from '../../assets/logoukai.png';
 
-import { useNavigate } from 'react-router-dom';
-
-
 export default function Navbar() {
-  const navigate = useNavigate();
 
   function handleTentangKamiClick() {
-    navigate('/aboutus');
+    // navigate('/aboutus');
   }
 
   function handleSocialMediaClick(url: string) {
@@ -59,7 +55,6 @@ export default function Navbar() {
           color: '#04214c',
           fontWeight: 600,
           fontSize: { xs: 20, md: 25 },
-          fontFamily: 'TelkomselBatikBold'
         }}>
           Tentang Rumah Ukai
         </Typography>
@@ -93,7 +88,6 @@ export default function Navbar() {
           fontWeight: 600,
           fontSize: { xs: 20, md: 25 },
           paddingTop: '46px',
-          fontFamily: 'TelkomselBatikBold'
         }}>
           Ikuti Rumah Ukai
         </Typography>

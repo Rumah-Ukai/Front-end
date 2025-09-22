@@ -311,7 +311,7 @@ export default function QuizNavigation({
                     backgroundColor: isSelected
                       ? themePalette.primaryDark
                       : isAnswered
-                      ? themePalette.primaryLight
+                      ? themePalette.primaryDark
                       : themePalette.primary,
               
                     color: isSelected || isAnswered ? themePalette.primaryContrastText : themePalette.textPrimary,

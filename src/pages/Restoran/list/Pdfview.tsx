@@ -27,7 +27,8 @@ export default function PdfView(): JSX.Element | null {
     const fetchPdf = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`http://localhost:3000/tryout-pdf-url?tryoutId=${encodeURIComponent(tryoutId)}`);
+        const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+        const res = await fetch(`${apiBase}/tryout-pdf-url?tryoutId=${encodeURIComponent(tryoutId)}`);
         if (!res.ok) throw new Error(`Server error: ${res.status}`);
         const data: PdfResponse = await res.json();
 
