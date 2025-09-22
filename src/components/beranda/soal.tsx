@@ -95,12 +95,12 @@ const parseTable = (table?: { headers: string | string[]; rows: string | (string
 const parseTextWithMath = (text: string) => {
   const parts = text.split(/(\$\$.*?\$\$)/g);
   return parts.map((part, idx) => {
-    if (part.startsWith("$$") && part.endsWith("$$")) {
+    if (part.startsWith('$$') && part.endsWith('$$')) {
       const mathContent = part.slice(2, -2);
       return <InlineMath key={idx} math={mathContent} />;
     }
     // handle newline
-    return part.split("\n").map((line, i) => (
+    return part.split('\n').map((line, i) => (
       <span key={`${idx}-${i}`}>
         {line}
         <br />
