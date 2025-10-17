@@ -48,13 +48,13 @@ function PackageCard({ title, palette }: PackageCardProps) {
   }, []);
 
   const colors = [
-  '#E74C3C',
-  '#3498DB',
-  '#2ECC71',
-  '#9B59B6',
-  '#F39C12',
-  '#1ABC9C',
-  '#34495E',
+    '#E74C3C',
+    '#3498DB',
+    '#2ECC71',
+    '#9B59B6',
+    '#F39C12',
+    '#1ABC9C',
+    '#34495E',
   ];
   const bgColor = colors[Math.floor(Math.random() * colors.length)];
 
@@ -222,10 +222,16 @@ export default function PaketGrid() {
     fetchUserPakets();
   }, []);
 
-  const handleItemClick = (id: string, expired: boolean) => {
-    if (!expired) {
-      navigate(`/paketku?id=${encodeURIComponent(id)}`);
+  // reset halaman jika data berubah dan currentPage melebihi totalPages
+  useEffect(() => {
+    const totalPages = Math.ceil(userPakets.length / itemsPerPage) || 1;
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
     }
+  }, [userPakets, currentPage]);
+
+  const handleItemClick = (id: string) => {
+    navigate(`/paketku?id=${encodeURIComponent(id)}`);
   };
 
   const totalPages = Math.ceil(userPakets.length / itemsPerPage);
@@ -250,55 +256,102 @@ export default function PaketGrid() {
   const isExpired = (closed_at: string) => new Date(closed_at) < new Date();
 
   return (
-    <Stack sx={{ width: '100%', alignItems: 'flex-start', justifyContent: 'space-between', minHeight: '600px' }}>
+    <Stack
+      sx={{
+        width: '100%',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        minHeight: '600px',
+      }}
+    >
       <Grid container spacing={{ xs: 0, sm: 2, md: 3 }} sx={{ width: '100%' }}>
-        {currentItems.map((item) => {
-          const expired = item.closed_at ? isExpired(item.closed_at) : false;
-          return (
-            <Grid item key={item.id} xs={12} sm={6} md={4} pb={3}>
-              <Card
-                sx={{
-                  bgcolor: palette.primary,
-                  borderRadius: 3,
-                  cursor: expired ? 'not-allowed' : 'pointer',
-                  opacity: expired ? 0.8 : 1,
-                  transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-                  '&:hover': expired
-                    ? {}
-                    : { transform: 'scale(1.03)', boxShadow: '0 8px 20px rgba(0,0,0,0.25)' },
-                }}
-                onClick={() => handleItemClick(item.id, expired)}
-              >
-                {item.image ? (
-                  <CardMedia component="img" height="140" image={item.image} alt={item.name} />
-                ) : (
-                  <PackageCard title={item.name} palette={palette} />
-                )}
-
-                <CardContent>
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: palette.primaryContrastText }}>
-                    {item.name}
-                  </Typography>
-                  {item.closed_at ? (
-                    expired ? (
-                      <Typography variant="body1" color="error" sx={{ fontWeight: 600, mt: 1,color: palette.error  }}>
-                        Expired: {formatDateIndo(item.closed_at)}
-                      </Typography>
-                    ) : (
-                      <Typography variant="body1" color="warning.main" sx={{ fontWeight: 600, mt: 1, color: palette.warning }}>
-                        Tutup: {formatDateIndo(item.closed_at)}
-                      </Typography>
-                    )
+        {currentItems.length === 0 ? (
+          <Grid item xs={12}>
+            <Stack
+              sx={{
+                width: '100%',
+                height: 200,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 3,
+                bgcolor: palette.primary + '22',
+              }}
+            >
+              <Typography variant="h6" sx={{ fontWeight: 600, color: palette.primaryDark }}>
+                Anda belum memiliki paket
+              </Typography>
+            </Stack>
+          </Grid>
+        ) : (
+          currentItems.map((item) => {
+            const expired = item.closed_at ? isExpired(item.closed_at) : false;
+            return (
+              <Grid item key={item.id} xs={12} sm={6} md={4} pb={3}>
+                <Card
+                  sx={{
+                    bgcolor: palette.primary,
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    opacity: expired ? 0.9 : 1,
+                    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                    '&:hover': {
+                      transform: 'scale(1.03)',
+                      boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
+                    },
+                  }}
+                  onClick={() => handleItemClick(item.id)}
+                >
+                  {item.image ? (
+                    <CardMedia component="img" height="140" image={item.image} alt={item.name} />
                   ) : (
-                    <Typography variant="h6" sx={{ fontWeight: 700, mt: 1, color: palette.primary }}>
-                      Rp. {formatPrice(item.price)}
-                    </Typography>
+                    <PackageCard title={item.name} palette={palette} />
                   )}
-                </CardContent>
-              </Card>
-            </Grid>
-          );
-        })}
+
+                  <CardContent>
+                    <Typography
+                      variant="h6"
+                      sx={{ fontWeight: 600, color: palette.primaryContrastText }}
+                    >
+                      {item.name}
+                    </Typography>
+                    {item.closed_at ? (
+                      expired ? (
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontWeight: 600,
+                            mt: 1,
+                            color: palette.error,
+                          }}
+                        >
+                          Kadaluarsa: {formatDateIndo(item.closed_at)}
+                        </Typography>
+                      ) : (
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontWeight: 600,
+                            mt: 1,
+                            color: palette.warning,
+                          }}
+                        >
+                          Tutup: {formatDateIndo(item.closed_at)}
+                        </Typography>
+                      )
+                    ) : (
+                      <Typography
+                        variant="h6"
+                        sx={{ fontWeight: 700, mt: 1, color: palette.primary }}
+                      >
+                        Rp. {formatPrice(item.price)}
+                      </Typography>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })
+        )}
       </Grid>
 
       {totalPages > 1 && (

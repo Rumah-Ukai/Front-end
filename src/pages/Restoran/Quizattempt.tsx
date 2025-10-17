@@ -12,7 +12,6 @@ import {
   TableRow,
   Button,
   useMediaQuery,
- 
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -72,6 +71,7 @@ export default function Tryout() {
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState<number>(Date.now());
   const [palette, setPalette] = useState(tokensSet.palette1);
+  const [paketExpired, setPaketExpired] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -107,15 +107,35 @@ export default function Tryout() {
           }
         } catch (err) {
           // tidak fatal — tetap lanjut fetch tryout
-          // console.warn('Gagal ambil tema user', err);
         }
 
-        // Ambil data tryout
+        // Ambil data tryout terlebih dahulu
         const tryoutRes = await axios.get<TryoutDetail>(
           `${API_BASE}/tryouts/${encodeURIComponent(tryoutId)}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setTryoutData(tryoutRes.data);
+
+        // ambil data paket untuk cek expired (menggunakan paket_id dari tryoutRes)
+        try {
+          const paketRes = await axios.get(`${API_BASE}/pakets`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const paketArray = Array.isArray(paketRes.data) ? paketRes.data : [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const paketData = paketArray.find((p: any) => p.id === tryoutRes.data.paket_id) ?? null;
+
+          if (paketData?.closed_at) {
+            const closedDate = new Date(paketData.closed_at).getTime();
+            setPaketExpired(closedDate < Date.now());
+          } else {
+            setPaketExpired(false);
+          }
+        } catch (err) {
+          // Jika gagal mengambil paket, jangan crash — anggap tidak expired
+          console.warn('Gagal ambil data paket untuk cek expired', err);
+          setPaketExpired(false);
+        }
 
         // Ambil attempts
         const attemptRes = await axios.get<Attempt[]>(
@@ -193,6 +213,11 @@ export default function Tryout() {
 
   const handleStartAttempt = useCallback(async () => {
     if (!tryoutData || !tryoutId) return;
+    if (paketExpired) {
+      alert('Paket ini sudah kadaluarsa. Tidak dapat memulai attempt baru.');
+      return;
+    }
+
     const token = localStorage.getItem('token');
     if (!token) {
       alert('Silakan login terlebih dahulu');
@@ -227,7 +252,7 @@ export default function Tryout() {
       void fetchAttempts();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attempts, fetchAttempts, navigate, tryoutData, tryoutId]);
+  }, [attempts, fetchAttempts, navigate, tryoutData, tryoutId, paketExpired]);
 
   const handleContinueAttempt = (a: Attempt) => {
     navigate(`/quiz?tryoutId=${a.tryout_id}&attempt=${a.attempt_number}`);
@@ -314,6 +339,7 @@ export default function Tryout() {
   };
 
   const startDisabled =
+    paketExpired ||
     attempts.some(a => a.status === 'ongoing' && getRemainingSeconds(a) > 0) ||
     (attempts.length >= (tryoutData?.attemptsAllowed ?? 3));
 
@@ -344,7 +370,7 @@ export default function Tryout() {
   return (
     <Stack spacing={4} sx={{ p: 2, bgcolor: palette.primaryContrastText }}>
       <Typography variant="h4" sx={{ fontWeight: 'bold', color: palette.btnSecondaryText }}>{tryoutData.name}</Typography>
-      <Typography variant="body2" sx={{ color: palette.btnSecondaryText, fontWeight:600 }}>{tryoutData.description}</Typography>
+      {/* <Typography variant="body2" sx={{ color: palette.btnSecondaryText, fontWeight:600 }}>{tryoutData.description}</Typography> */}
 
       <Stack spacing={1}>
         <Typography sx={{ color: palette.btnSecondaryText }}><strong>Jumlah percobaan:</strong> {tryoutData.attemptsAllowed ?? 3}</Typography>
@@ -449,9 +475,9 @@ export default function Tryout() {
             <TableHead>
               <TableRow>
                 <TableCell sx={{ color: palette.btnSecondaryText }}>No.</TableCell>
-                <TableCell sx={{ color: palette.btnSecondaryText }}>Status / Time Left</TableCell>
-                <TableCell sx={{ color: palette.btnSecondaryText }}>Grade</TableCell>
-                <TableCell sx={{ color: palette.btnSecondaryText }}>Action</TableCell>
+                <TableCell sx={{ color: palette.btnSecondaryText }}>Status / Waktu tersisa</TableCell>
+                <TableCell sx={{ color: palette.btnSecondaryText }}>Nilai</TableCell>
+                <TableCell sx={{ color: palette.btnSecondaryText }}>Aksi</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -468,11 +494,11 @@ export default function Tryout() {
                       <TableCell sx={{ color: palette.btnSecondaryText }}>{idx + 1}</TableCell>
                       <TableCell>
                         {isFinished ? (
-                          <Typography sx={{ color: palette.btnSecondaryText }}>Finished</Typography>
+                          <Typography sx={{ color: palette.btnSecondaryText }}>Selesai</Typography>
                         ) : isExpiredOngoing ? (
-                          <Typography sx={{ color: palette.warning }}>Time expired</Typography>
+                          <Typography sx={{ color: palette.warning }}>Waktu Habis</Typography>
                         ) : (
-                          <Typography sx={{ color: palette.info }}>Ongoing — {formatHMS(remainingSec)}</Typography>
+                          <Typography sx={{ color: palette.info }}>Berlangsung — {formatHMS(remainingSec)}</Typography>
                         )}
                       </TableCell>
                       <TableCell sx={{ color: palette.btnSecondaryText }}>{a.grade ?? '-'}</TableCell>
@@ -510,6 +536,12 @@ export default function Tryout() {
         </Paper>
       )}
 
+      {paketExpired && (
+        <Typography color="error" sx={{ fontWeight: 600 }}>
+          ⚠️ Paket ini sudah kadaluarsa. Kamu tidak dapat memulai ujian baru.
+        </Typography>
+      )}
+
       <Button
         variant="contained"
         onClick={() => void handleStartAttempt()}
@@ -520,7 +552,7 @@ export default function Tryout() {
           '&:hover': { backgroundColor: startDisabled ? '#bdbdbd' : palette.primaryDark, fontFamily:'Poppins' },
         }}
       >
-        Start New Attempt
+        Mulai Ujian
       </Button>
     </Stack>
   );
