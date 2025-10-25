@@ -12,6 +12,7 @@ import {
   TableRow,
   Button,
   useMediaQuery,
+  Box,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -72,7 +73,7 @@ export default function Tryout() {
   const [now, setNow] = useState<number>(Date.now());
   const [palette, setPalette] = useState(tokensSet.palette1);
   const [paketExpired, setPaketExpired] = useState(false);
-
+ const [paketId, setPaketId] = useState('');
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
@@ -257,6 +258,29 @@ export default function Tryout() {
   const handleContinueAttempt = (a: Attempt) => {
     navigate(`/quiz?tryoutId=${a.tryout_id}&attempt=${a.attempt_number}`);
   };
+     useEffect(() => {
+    if (!tryoutId) return;
+
+    const token = localStorage.getItem('token');
+    axios
+      .get(`${API_BASE}/tryouts/${tryoutId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        setPaketId(res.data.paket_id);
+      })
+      .catch((err) => {
+        console.error('Gagal fetch tryout:', err);
+      })
+      .finally(() => setLoading(false));
+  }, [tryoutId]);
+  const handleBackClick = () => {
+    if (paketId) {
+      navigate(`/paketku?id=${paketId}`);
+    } else {
+      alert('Paket ID tidak ditemukan');
+    }
+  };
 
   const handleGradeAttempt = async (a: Attempt) => {
     const ok = window.confirm('Waktu habis untuk attempt ini. Lanjutkan untuk menandai selesai dan melakukan grading?');
@@ -369,6 +393,23 @@ export default function Tryout() {
 
   return (
     <Stack spacing={4} sx={{ p: 2, bgcolor: palette.primaryContrastText }}>
+         <Box sx={{ mb: 2 }}>
+        <Button
+          onClick={handleBackClick}
+          variant="contained"
+          sx={{
+            backgroundColor: palette.primaryLight,
+            color: palette.primaryContrastText,
+            fontWeight: 'bold',
+            textTransform: 'none',
+            '&:hover': {
+              backgroundColor: palette.primaryDark,
+            },
+          }}
+        >
+          ← Kembali
+        </Button>
+      </Box>
       <Typography variant="h4" sx={{ fontWeight: 'bold', color: palette.btnSecondaryText }}>{tryoutData.name}</Typography>
       {/* <Typography variant="body2" sx={{ color: palette.btnSecondaryText, fontWeight:600 }}>{tryoutData.description}</Typography> */}
 

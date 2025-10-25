@@ -40,7 +40,8 @@ export default function Paket() {
   const paketId = searchParams.get('id');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
- useEffect(() => {
+
+  useEffect(() => {
     const prevBodyBg = document.body.style.backgroundColor;
     const prevHtmlBg = document.documentElement.style.backgroundColor;
     document.body.style.backgroundColor = palette.primaryContrastText;
@@ -49,8 +50,9 @@ export default function Paket() {
       document.body.style.backgroundColor = prevBodyBg;
       document.documentElement.style.backgroundColor = prevHtmlBg;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [palette.surface]);
+
   useEffect(() => {
     const fetchUserTheme = async () => {
       const token = localStorage.getItem('token');
@@ -136,7 +138,13 @@ export default function Paket() {
   };
 
   const handleOpenPdf = (tryoutId: string) => {
-    navigate(`/pdfviewer?id=${tryoutId}`);
+    const url = `/pdfviewer?id=${tryoutId}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  // 🟩 tombol kembali
+  const handleBackClick = () => {
+    navigate('/daftar-paketku'); // ubah ke path yang kamu mau
   };
 
   const getGradeColor = (grade: number): string => {
@@ -150,6 +158,25 @@ export default function Paket() {
 
   return (
     <Stack spacing={4} sx={{ p: 4, bgcolor: palette.primaryContrastText }}>
+      {/* Tombol kembali di pojok kiri atas */}
+      <Box sx={{ mb: 2 }}>
+        <Button
+          onClick={handleBackClick}
+          variant="contained"
+          sx={{
+            backgroundColor: palette.primaryLight,
+            color: palette.primaryContrastText,
+            fontWeight: 'bold',
+            textTransform: 'none',
+            '&:hover': {
+              backgroundColor: palette.primaryDark,
+            },
+          }}
+        >
+          ← Kembali
+        </Button>
+      </Box>
+
       <Typography
         variant="h4"
         sx={{ fontWeight: 'bold', color: palette.btnSecondaryText }}
@@ -160,7 +187,7 @@ export default function Paket() {
       {tryouts.length === 0 ? (
         <Typography>Tidak ada tryout untuk paket ini</Typography>
       ) : (
-        <Stack spacing={2} >
+        <Stack spacing={2}>
           {tryouts.map((tryout) => {
             return (
               <Paper
@@ -183,7 +210,6 @@ export default function Paket() {
                     variant="h6"
                     sx={{
                       fontWeight: 'bold',
-                  
                       color: palette.primaryContrastText,
                     }}
                   >
@@ -221,9 +247,12 @@ export default function Paket() {
                   <Button
                     variant="contained"
                     onClick={() => handleTryoutClick(tryout)}
-                    sx={{ backgroundColor: palette.primaryLight,'&:hover': {
-      backgroundColor: palette.primaryDark, // ganti warna saat hover
-    }, }}
+                    sx={{
+                      backgroundColor: palette.primaryLight,
+                      '&:hover': {
+                        backgroundColor: palette.primaryDark,
+                      },
+                    }}
                   >
                     Buka Tryout
                   </Button>
@@ -238,8 +267,8 @@ export default function Paket() {
                         bgcolor: palette.info,
                         borderColor: palette.info,
                         '&:hover': {
-      backgroundColor: palette.info, // ganti warna saat hover
-    },
+                          backgroundColor: palette.info,
+                        },
                       }}
                     >
                       Buka PDF
