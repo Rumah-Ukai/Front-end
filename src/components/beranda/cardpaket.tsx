@@ -16,7 +16,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom';
 import { tokensSet } from '../../theme/tokens';
 
 interface Shape {
@@ -188,12 +188,21 @@ interface PaketItem {
   detail3?: string;
   detail4?: string;
   detail5?: string;
+  // tambahan: kapan ujiannya ditutup (ISO string)
+  closed_at?: string | null;
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
+// Midtrans client key (frontend only) and snap script depending on mode
+const MIDTRANS_CLIENT_KEY = import.meta.env.VITE_MIDTRANS_CLIENT_KEY || '';
+const MIDTRANS_SNAP_URL =
+  import.meta.env.MODE === 'production'
+    ? 'https://app.midtrans.com/snap/snap.js'
+    : 'https://app.sandbox.midtrans.com/snap/snap.js';
+
 export default function PaketGrid() {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const [palette, setPalette] = useState(tokensSet.palette1); // default
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
@@ -204,8 +213,37 @@ export default function PaketGrid() {
   // processing id to prevent duplicate/parallel requests
   const [processingId, setProcessingId] = useState<string | null>(null);
 
+  // midtrans script loaded flag
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [snapLoaded, setSnapLoaded] = useState(false);
+
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState('');
+
+  // helper untuk format tanggal ke Indonesia
+  const formatDateIndo = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return new Intl.DateTimeFormat('id-ID', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(d);
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const isExpired = (closedAt: string) => {
+    try {
+      return new Date(closedAt) < new Date();
+    } catch {
+      return false;
+    }
+  };
 
   useEffect(() => {
     const fetchUserTheme = async () => {
@@ -280,6 +318,48 @@ export default function PaketGrid() {
     return `Rp ${num.toLocaleString('id-ID')}`;
   };
 
+  // helper: load Midtrans snap.js only once
+  const loadMidtransSnap = async (): Promise<void> => {
+    if (typeof window === 'undefined') return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((window as any).snap) {
+      setSnapLoaded(true);
+      return;
+    }
+    // if already appended script element and still loading, wait until available
+    const existing = document.getElementById('midtrans-snap-script');
+    if (existing) {
+      // wait until snap is available
+      return new Promise<void>((resolve) => {
+        const check = setInterval(() => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if ((window as any).snap) {
+            clearInterval(check);
+            setSnapLoaded(true);
+            resolve();
+          }
+        }, 200);
+      });
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      const script = document.createElement('script');
+      script.id = 'midtrans-snap-script';
+      script.src = MIDTRANS_SNAP_URL;
+      script.setAttribute('data-client-key', MIDTRANS_CLIENT_KEY);
+      script.async = true;
+      script.onload = () => {
+        setSnapLoaded(true);
+        resolve();
+      };
+      script.onerror = (e) => {
+        console.error('Failed to load Midtrans snap.js', e);
+        reject(new Error('Gagal memuat Midtrans script'));
+      };
+      document.head.appendChild(script);
+    });
+  };
+
   const handleBeliPaket = async (paket: PaketItem) => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -288,56 +368,183 @@ export default function PaketGrid() {
     }
 
     if (processingId !== null) return; // some request in progress
-
     setProcessingId(paket.id);
+
     try {
-      const res = await fetch(`${API_BASE}/user-pakets`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ paket_id: paket.id }),
-      });
-
-      // parse response safely
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let data: any = null;
-      try {
-        data = await res.json();
-      } catch (err) {
-        console.error('Response is not JSON', err);
-        alert('Response server tidak valid');
+      // 1) Ambil harga authoritative dari backend
+      const detailResp = await fetch(`${API_BASE}/pakets/${paket.id}`);
+      if (!detailResp.ok) {
+        console.error('Gagal mendapatkan detail paket', detailResp.status);
+        alert('Gagal mendapatkan detail paket. Coba lagi.');
         setProcessingId(null);
         return;
       }
+      const latestPaket: PaketItem = await detailResp.json();
+      const priceNum = Number(latestPaket.price || 0);
 
-      if (!res.ok) {
-        // server-side validation error
-        const errMsg = data?.error || 'Terjadi kesalahan';
-        alert(errMsg);
-        setProcessingId(null);
-        return;
-      }
+      // 2) Jika gratis => langsung minta backend menambah paket ke user
+      if (priceNum === 0) {
+        const res = await fetch(`${API_BASE}/user-pakets`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ paket_id: paket.id }),
+        });
 
-      // sukses case
-      if (data.free) {
-        // only free packages are inserted on backend; update state (avoid duplication)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let data: any = null;
+        try {
+          data = await res.json();
+        } catch (err) {
+          console.error('Response is not JSON', err);
+          alert('Response server tidak valid');
+          setProcessingId(null);
+          return;
+        }
+
+        if (!res.ok) {
+          const errMsg = data?.error || 'Terjadi kesalahan saat menambahkan paket gratis';
+          alert(errMsg);
+          setProcessingId(null);
+          return;
+        }
+
+        // berhasil, update UI supaya paket tidak lagi tampil
         setUserPakets((prev) => (prev.includes(paket.id) ? prev : [...prev, paket.id]));
         setSelectedPaket(null);
         setSnackbarMsg(data.message || 'Paket berhasil ditambahkan!');
         setSnackbarOpen(true);
-      } else if (data.paymentPath) {
-        // navigate to internal pembayaran page
-        setSelectedPaket(null);
-        navigate(data.paymentPath);
-      } else {
-        // fallback
-        setSelectedPaket(null);
-        setSnackbarMsg('Proses berhasil. Periksa paketku atau refresh');
-        setSnackbarOpen(true);
+        setProcessingId(null);
+        return;
       }
+
+      // 3) Untuk paket berbayar => buat order_id unik dan panggil /create-transaction
+      const orderId = `P-${paket.id}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      const createBody = {
+        order_id: orderId,
+        gross_amount: priceNum,
+        paket_id: paket.id,
+        // customer_details bisa dikirim jika kamu punya data user
+        customer_details: {},
+        item_details: [
+          {
+            id: paket.id,
+            price: priceNum,
+            quantity: 1,
+            name: paket.name,
+          },
+        ],
+      };
+
+      const createResp = await fetch(`${API_BASE}/create-transaction`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(createBody),
+      });
+
+      if (!createResp.ok) {
+        const txt = await createResp.text().catch(() => null);
+        console.error('create-transaction failed', createResp.status, txt);
+        alert('Gagal membuat transaksi. Coba lagi.');
+        setProcessingId(null);
+        return;
+      }
+
+      const createData = await createResp.json();
+      const tokenMidtrans = createData.token;
+      const redirectUrl = createData.redirect_url || createData.redirectUrl || createData.redirect;
+
+      if (!tokenMidtrans && !redirectUrl) {
+        console.error('create-transaction: token/redirect missing', createData);
+        alert('Respons transaksi tidak valid dari server.');
+        setProcessingId(null);
+        return;
+      }
+
+      // 4) Jika backend mengembalikan redirect_url -> redirect (redirect flow)
+      if (redirectUrl) {
+        // NOTE: server already created order in DB (PENDING)
+        window.location.href = redirectUrl;
+        // don't reset processingId here, user will leave page
+        return;
+      }
+
+      // 5) Popup mode -> load snap script lalu panggil snap.pay
+      try {
+        await loadMidtransSnap();
+      } catch (err) {
+        alert('Gagal memuat modul pembayaran. Coba lagi nanti.');
+        setProcessingId(null);
+        return;
+      }
+
+      // call snap.pay
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).snap.pay(tokenMidtrans, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onSuccess: async (result: any) => {
+          console.log('midtrans success', result);
+          // UX: beri tahu user
+          setSnackbarMsg('Pembayaran berhasil. Terima kasih!');
+          setSnackbarOpen(true);
+          setSelectedPaket(null);
+
+          // OPTIONAL: panggil endpoint finalize (jika backend mendukung finalize via order_id)
+          // backend juga akan menerima webhook Midtrans; ini hanya percobaan finalize cepat
+          try {
+            const finalizeResp = await fetch(`${API_BASE}/user-pakets`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ paket_id: paket.id, order_id: orderId }),
+            });
+            if (finalizeResp.ok) {
+              // update local state supaya paket hilang
+              setUserPakets((prev) => (prev.includes(paket.id) ? prev : [...prev, paket.id]));
+            } else {
+              // bisa diabaikan: webhook server akan menambahkan paket jika pembayaran settled
+              console.warn('Finalize request not accepted by server');
+            }
+          } catch (e) {
+            console.warn('Finalize request failed', e);
+          }
+
+          // reset processing id
+          setTimeout(() => setProcessingId(null), 800);
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onPending: (result: any) => {
+          console.log('midtrans pending', result);
+          setSnackbarMsg('Pembayaran tertunda. Silakan selesaikan pembayaran.');
+          setSnackbarOpen(true);
+          // order masih PENDING on backend; webhook akan update nanti
+          setTimeout(() => setProcessingId(null), 800);
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onError: (result: any) => {
+          console.error('midtrans error', result);
+          setSnackbarMsg('Terjadi kesalahan saat memproses pembayaran.');
+          setSnackbarOpen(true);
+          setTimeout(() => setProcessingId(null), 800);
+        },
+        onClose: () => {
+          console.log('customer closed the popup without finishing the payment');
+          setSnackbarMsg('Pembayaran dibatalkan.');
+          setSnackbarOpen(true);
+          setTimeout(() => setProcessingId(null), 800);
+        },
+      });
     } catch (error) {
       console.error('handleBeliPaket error', error);
-      alert('Gagal menambahkan paket. Coba lagi.');
-    } finally {
+      alert('Gagal memproses pembelian. Coba lagi.');
       setProcessingId(null);
     }
   };
@@ -363,41 +570,72 @@ export default function PaketGrid() {
             </Stack>
           </Grid>
         ) : (
-          currentItems.map((item) => (
-            <Grid item key={item.id} xs={12} sm={6} md={4}>
-              <Card
-                sx={{
-                  bgcolor: palette.primary,
-                  borderRadius: 3,
-                  cursor: 'pointer',
-                  transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-                  '&:hover': {
-                    transform: 'scale(1.03)',
-                    boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
-                  },
-                }}
-                onClick={() => setSelectedPaket(item)}
-              >
-                {item.image ? (
-                  <CardMedia component="img" height="140" image={item.image} alt={item.name} />
-                ) : (
-                  <PackageCard title={item.name} palette={palette} />
-                )}
+          currentItems.map((item) => {
+            const expired = item.closed_at ? isExpired(item.closed_at) : false;
+            return (
+              <Grid item key={item.id} xs={12} sm={6} md={4}>
+                <Card
+                  sx={{
+                    bgcolor: palette.primary,
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                    '&:hover': {
+                      transform: 'scale(1.03)',
+                      boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
+                    },
+                    opacity: expired ? 0.9 : 1,
+                  }}
+                  onClick={() => setSelectedPaket(item)}
+                >
+                  {item.image ? (
+                    <CardMedia component="img" height="140" image={item.image} alt={item.name} />
+                  ) : (
+                    <PackageCard title={item.name} palette={palette} />
+                  )}
 
-                <CardContent>
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: palette.primaryContrastText }}>
-                    {item.name}
-                  </Typography>
-                  <Typography
-                    variant="h6"
-                    sx={{ fontWeight: 700, mt: 1, color: palette.primaryContrastText }}
-                  >
-                    {formatPrice(item.price)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))
+                  <CardContent>
+                    <Typography variant="h6" sx={{ fontWeight: 600, color: palette.primaryContrastText }}>
+                      {item.name}
+                    </Typography>
+ <Typography variant="h6" sx={{ fontWeight: 700, mt: 1, color: palette.primaryContrastText }}>
+                        {formatPrice(item.price)}
+                      </Typography>
+                    {/* {item.closed_at ? (
+                      expired ? (
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontWeight: 600,
+                            mt: 1,
+                            color: palette.error,
+                          }}
+                        >
+                          Ujian telah ditutup pada: {formatDateIndo(item.closed_at)}
+                        </Typography>
+                      ) : (
+                        
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontWeight: 600,
+                            mt: 1,
+                            color: palette.warning,
+                          }}
+                        >
+                          Tutup: {formatDateIndo(item.closed_at)}
+                        </Typography>
+                      )
+                    ) : (
+                      <Typography variant="h6" sx={{ fontWeight: 700, mt: 1, color: palette.primaryContrastText }}>
+                        {formatPrice(item.price)}
+                      </Typography>
+                    )} */}
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })
         )}
       </Grid>
 
@@ -437,16 +675,37 @@ export default function PaketGrid() {
                 <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2, color: palette.btnSecondaryText }}>
                   {selectedPaket.name}
                 </Typography>
+
                 {[1, 2, 3, 4, 5].map((n) => {
                   const key = `detail${n}` as keyof PaketItem;
                   return (
                     selectedPaket[key] && (
-                      <Typography key={n} variant="body1" sx={{ mb: 1, color: palette.btnSecondaryText, fontWeight: 600 }}>
+                      <Typography
+                        key={n}
+                        variant="body1"
+                        sx={{ mb: 1, color: palette.btnSecondaryText, fontWeight: 600 }}
+                      >
                         • {selectedPaket[key]}
                       </Typography>
                     )
                   );
                 })}
+
+                {/* tampilkan informasi closed_at kalau ada */}
+                {selectedPaket.closed_at && (
+                  <>
+                    {isExpired(selectedPaket.closed_at) ? (
+                      <Typography variant="body1" sx={{ mb: 1, color: palette.error, fontWeight: 700 }}>
+                        Ujian telah ditutup pada: {formatDateIndo(selectedPaket.closed_at)}
+                      </Typography>
+                    ) : (
+                      <Typography variant="body1" sx={{ mb: 1, color: palette.warning, fontWeight: 700 }}>
+                        Tutup: {formatDateIndo(selectedPaket.closed_at)}
+                      </Typography>
+                    )}
+                  </>
+                )}
+
                 <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 2, color: palette.btnSecondaryText }}>
                   {formatPrice(selectedPaket.price)}
                 </Typography>
@@ -471,7 +730,12 @@ export default function PaketGrid() {
         )}
       </Dialog>
 
-      <Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={() => setSnackbarOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
         <Alert severity="success" sx={{ width: '100%' }}>
           {snackbarMsg}
         </Alert>

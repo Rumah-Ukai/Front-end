@@ -324,7 +324,7 @@ export default function PaketGrid() {
                             color: palette.error,
                           }}
                         >
-                          Kadaluarsa: {formatDateIndo(item.closed_at)}
+                          Ujian telah ditutup pada: {formatDateIndo(item.closed_at)}
                         </Typography>
                       ) : (
                         <Typography

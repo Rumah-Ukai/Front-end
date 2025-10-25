@@ -4,6 +4,8 @@ import Navbar  from './components/ui/navbar/navbar';
 import Navbarwhite  from './components/ui/navbar/navbarwhite';
 import Navbaradmin  from './components/ui/navbar/navbaradmin';
 // import Adminlayout  from './pages/Admin/Login/adminlayout';
+import  Payment  from './pages/Payment/PaymentFinish';
+import  Paymenteror  from './pages/Payment/PaymentEror';
 import { Quiz } from './pages/quiz';
 import { AdminHotel } from './pages/Admin/Hotel';
 import { AdminBeranda } from './pages/Admin/Beranda';
@@ -160,6 +162,30 @@ const router = createBrowserRouter([
     )
   },
  
+  {
+    path: '/pembayaran-selesai',
+    element: (
+      <ProtectedRoute>
+      <>
+        {/* <Navbar /> */}
+        <Payment />
+        {/* <Footer/> */}
+      </>
+      </ProtectedRoute>
+    )
+  },
+   {
+    path: '/pembayaran-gagal',
+    element: (
+      <ProtectedRoute>
+      <>
+        {/* <Navbar /> */}
+        <Paymenteror />
+        {/* <Footer/> */}
+      </>
+      </ProtectedRoute>
+    )
+  },
   {
     path: '/paketku',
     element: (
