@@ -215,7 +215,7 @@ export default function PaketGrid() {
 
   // midtrans script loaded flag
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [snapLoaded, setSnapLoaded] = useState(false);
+  // const [snapLoaded, setSnapLoaded] = useState(false);
 
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState('');
@@ -323,7 +323,7 @@ export default function PaketGrid() {
     if (typeof window === 'undefined') return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((window as any).snap) {
-      setSnapLoaded(true);
+      // setSnapLoaded(true);
       return;
     }
     // if already appended script element and still loading, wait until available
@@ -335,7 +335,7 @@ export default function PaketGrid() {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if ((window as any).snap) {
             clearInterval(check);
-            setSnapLoaded(true);
+            // setSnapLoaded(true);
             resolve();
           }
         }, 200);
@@ -349,7 +349,7 @@ export default function PaketGrid() {
       script.setAttribute('data-client-key', MIDTRANS_CLIENT_KEY);
       script.async = true;
       script.onload = () => {
-        setSnapLoaded(true);
+        // setSnapLoaded(true);
         resolve();
       };
       script.onerror = (e) => {
