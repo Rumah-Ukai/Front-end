@@ -58,25 +58,24 @@ export default function QuizNavigation({
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
   const [windowHeight, setWindowHeight] = useState<number>(window.innerHeight);
+
+  // ✅ Handle window resize untuk layout dinamis
   useEffect(() => {
     const onResize = () => setWindowHeight(window.innerHeight);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // Ambil tema dari DB
+  // ✅ Ambil tema dari database
   useEffect(() => {
     const fetchTheme = async () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
-
         const res = await axios.get<ThemeFromDB>(`${API_BASE}/user`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-
         if (res.data?.palette && tokensSet[res.data.palette]) {
           setThemePalette(tokensSet[res.data.palette]);
         }
@@ -84,10 +83,10 @@ export default function QuizNavigation({
         console.error('Gagal ambil tema', err);
       }
     };
-
     void fetchTheme();
   }, []);
 
+  // ✅ Timer sinkron berdasarkan startTime & durationMinutes
   useEffect(() => {
     const start = new Date(startTime).getTime();
     const totalSeconds = durationMinutes * 60;
@@ -99,8 +98,8 @@ export default function QuizNavigation({
 
       if (remaining <= 0) {
         setTimeLeft(0);
-        onTimeUp();
         clearInterval(tick);
+        onTimeUp();
       } else {
         setTimeLeft(remaining);
       }
@@ -109,6 +108,7 @@ export default function QuizNavigation({
     return () => clearInterval(tick);
   }, [startTime, durationMinutes, onTimeUp]);
 
+  // ✅ Format MM:SS
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60).toString().padStart(2, '0');
     const s = (sec % 60).toString().padStart(2, '0');
@@ -123,8 +123,15 @@ export default function QuizNavigation({
   const gridMaxHeight = isMobile ? 260 : windowHeight - 250;
 
   return (
-    <Card sx={{ boxShadow: 3, borderRadius: 2, width: '100%', bgcolor: themePalette.primaryContrastText }}>
-      {/* Header */}
+    <Card
+      sx={{
+        boxShadow: 3,
+        borderRadius: 2,
+        width: '100%',
+        bgcolor: themePalette.primaryContrastText,
+      }}
+    >
+      {/* HEADER */}
       <Box
         sx={{
           display: 'flex',
@@ -159,7 +166,7 @@ export default function QuizNavigation({
                 color: themePalette.primaryContrastText,
                 transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
                 transition: '0.25s',
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
               }}
             >
               <ExpandMoreIcon sx={{ fontSize: 20 }} />
@@ -168,105 +175,70 @@ export default function QuizNavigation({
         </Box>
       </Box>
 
+      {/* BODY */}
       <Collapse in={expanded} timeout="auto" unmountOnExit>
         <CardContent sx={{ pt: 1, pb: 1 }}>
+          {/* Toolbar */}
           <Stack
             direction="row"
             spacing={1}
             mb={1}
             alignItems="center"
-            justifyContent={'space-between'}
-            display={'flex'}
+            justifyContent="space-between"
           >
+            {/* TOMBOL LIHAT SEMUA / SATU SOAL */}
             <Tooltip title={showAll ? 'Fokus ke satu soal' : 'Perlihatkan semua soal'} arrow>
-            <Button
-  size="small"
-  variant="contained"
-  onClick={onToggleShowAll}
-  sx={{
-    flexGrow: 1,
-    minWidth: 'auto',
-    bgcolor: themePalette.primaryDark,
-    borderColor: themePalette.primaryDark,
-    color: themePalette.primaryContrastText,
-    '&:hover': {
-      bgcolor: themePalette.primaryLight, // warna saat hover
-      borderColor: themePalette.primaryLight,
-    },
-  }}
->
-  {showAll ? 'Semua soal' : 'Lihat 1 soal'}
-</Button>
-
-            </Tooltip>
-
-            <Tooltip title={'Ubah ukuran huruf'} arrow>
               <Button
                 size="small"
-                variant={fontSize === 'small' ? 'contained' : 'outlined'}
-                onClick={() => handleFontSize('small')}
+                variant="contained"
+                onClick={onToggleShowAll}
                 sx={{
                   flexGrow: 1,
-                  minWidth: 'auto',
-                  fontSize: '14px',
-                  backgroundColor: fontSize === 'small' ? themePalette.primaryDark : themePalette.primaryLight,
-                  color: fontSize === 'small' ? themePalette.primaryContrastText : themePalette.textPrimary,
-                  borderColor: themePalette.primaryLight,
+                  bgcolor: themePalette.primaryDark,
+                  color: themePalette.primaryContrastText,
                   '&:hover': {
-      bgcolor: themePalette.primaryDark, // warna saat hover
-      borderColor: themePalette.primaryDark,
-    },
+                    bgcolor: themePalette.primaryLight,
+                  },
                 }}
               >
-                A-
+                {showAll ? 'Semua soal' : 'Lihat 1 soal'}
               </Button>
             </Tooltip>
 
-            <Tooltip title={'Ubah ukuran huruf'} arrow>
-              <Button
-                size="small"
-                variant={fontSize === 'normal' ? 'contained' : 'outlined'}
-                onClick={() => handleFontSize('normal')}
-                sx={{
-                  flexGrow: 1,
-                  minWidth: 'auto',
-                  fontSize: '16px',
-                  backgroundColor: fontSize === 'normal' ?  themePalette.primaryDark : themePalette.primaryLight,
-                  color: fontSize === 'normal' ? themePalette.primaryContrastText : themePalette.textPrimary,
-                 borderColor: themePalette.primaryLight,
-                  '&:hover': {
-      bgcolor: themePalette.primaryDark, // warna saat hover
-      borderColor: themePalette.primaryDark,
-    },
-                }}
-              >
-                A
-              </Button>
-            </Tooltip>
-
-            <Tooltip title={'Ubah ukuran huruf'} arrow>
-              <Button
-                size="small"
-                variant={fontSize === 'large' ? 'contained' : 'outlined'}
-                onClick={() => handleFontSize('large')}
-                sx={{
-                  flexGrow: 1,
-                  minWidth: 'auto',
-                  fontSize: '18px',
-                  backgroundColor: fontSize === 'large' ?  themePalette.primaryDark : themePalette.primaryLight,
-                  color: fontSize === 'large' ? themePalette.primaryContrastText : themePalette.textPrimary,
-                 borderColor: themePalette.primaryLight,
-                  '&:hover': {
-      bgcolor: themePalette.primaryDark, // warna saat hover
-      borderColor: themePalette.primaryDark,
-    },
-                }}
-              >
-                A+
-              </Button>
-            </Tooltip>
+            {/* FONT SIZE BUTTONS */}
+            {(['small', 'normal', 'large'] as const).map((size) => (
+              <Tooltip key={size} title="Ubah ukuran huruf" arrow>
+                <Button
+                  size="small"
+                  variant={fontSize === size ? 'contained' : 'outlined'}
+                  onClick={() => handleFontSize(size)}
+                  sx={{
+                    flexGrow: 1,
+                    minWidth: 'auto',
+                    fontSize:
+                      size === 'small' ? '14px' : size === 'normal' ? '16px' : '18px',
+                    backgroundColor:
+                      fontSize === size
+                        ? themePalette.primaryDark
+                        : themePalette.primaryLight,
+                    color:
+                      fontSize === size
+                        ? themePalette.primaryContrastText
+                        : themePalette.textPrimary,
+                    borderColor: themePalette.primaryLight,
+                    '&:hover': {
+                      bgcolor: themePalette.primaryDark,
+                      borderColor: themePalette.primaryDark,
+                    },
+                  }}
+                >
+                  {size === 'small' ? 'A-' : size === 'normal' ? 'A' : 'A+'}
+                </Button>
+              </Tooltip>
+            ))}
           </Stack>
 
+          {/* GRID NOMOR SOAL */}
           <Box
             display="grid"
             gridTemplateColumns={{
@@ -289,7 +261,9 @@ export default function QuizNavigation({
                 backgroundColor: themePalette.primaryLight,
                 borderRadius: '10px',
               },
-              '&::-webkit-scrollbar-thumb:hover': { backgroundColor: themePalette.primaryDark},
+              '&::-webkit-scrollbar-thumb:hover': {
+                backgroundColor: themePalette.primaryDark,
+              },
               pb: '2px',
               pt: '4px',
             }}
@@ -311,19 +285,19 @@ export default function QuizNavigation({
                     backgroundColor: isSelected
                       ? themePalette.primaryDark
                       : isAnswered
-                      ? themePalette.primaryDark
+                      ? themePalette.primaryLight
                       : themePalette.primary,
-              
-                    color: isSelected || isAnswered ? themePalette.primaryContrastText : themePalette.textPrimary,
+                    color:
+                      isSelected || isAnswered
+                        ? themePalette.primaryContrastText
+                        : themePalette.textPrimary,
                     fontSize: 13,
                     fontWeight: 500,
                     position: 'relative',
                     '&:hover': {
                       backgroundColor: isSelected
                         ? themePalette.primaryDark
-                        : isAnswered
-                        ? themePalette.primaryLight
-                        : themePalette.primaryDark,
+                        : themePalette.primaryLight,
                     },
                     ...(flagged && {
                       '&::after': {
