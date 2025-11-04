@@ -683,7 +683,7 @@ export default function Quiz(): JSX.Element {
             sm: '360px',
             md: '440px',
             lg: '520px',
-            xl: '540px',
+            xl: '560px',
           },
           bgcolor:themePalette.primary
         }}

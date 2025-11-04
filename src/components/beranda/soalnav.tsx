@@ -1,5 +1,5 @@
 // src/components/QuizNavigation.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Stack,
   Button,
@@ -37,6 +37,8 @@ interface ThemeFromDB {
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+const WS_FALLBACK = (API_BASE || 'http://localhost:3000').replace(/^http/, 'ws');
+const WS_URL = (import.meta.env.VITE_WS_URL as string) || WS_FALLBACK;
 
 export default function QuizNavigation({
   totalQuestions,
@@ -66,7 +68,7 @@ export default function QuizNavigation({
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // Ambil tema dari DB
+  // ---------------- THEME FROM DB ----------------
   useEffect(() => {
     const fetchTheme = async () => {
       try {
@@ -88,31 +90,78 @@ export default function QuizNavigation({
     void fetchTheme();
   }, []);
 
+  // ---------------- WEBSOCKET ----------------
+  const wsRef = useRef<WebSocket | null>(null);
+  const [serverBaseMs, setServerBaseMs] = useState<number | null>(null);
+  const [perfBase, setPerfBase] = useState<number | null>(null);
+
   useEffect(() => {
-    const start = new Date(startTime).getTime();
-    const totalSeconds = durationMinutes * 60;
+    const ws = new WebSocket(WS_URL);
+    wsRef.current = ws;
 
-    const tick = setInterval(() => {
-      const now = Date.now();
-      const elapsed = Math.floor((now - start) / 1000);
-      const remaining = totalSeconds - elapsed;
-
-      if (remaining <= 0) {
-        setTimeLeft(0);
-        onTimeUp();
-        clearInterval(tick);
-      } else {
-        setTimeLeft(remaining);
+    ws.onopen = () => console.log('[WS] Connected');
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const serverNowStr = data?.server_now ?? data?.serverTime ?? data?.server_now;
+        if (serverNowStr) {
+          const serverMs = new Date(serverNowStr).getTime();
+          setServerBaseMs(serverMs);
+          setPerfBase(performance.now());
+        }
+      } catch (err) {
+        console.error('[WS] invalid data:', event.data);
       }
-    }, 1000);
+    };
+    ws.onerror = (e) => console.error('[WS] error', e);
+    ws.onclose = () => console.warn('[WS] closed');
 
-    return () => clearInterval(tick);
-  }, [startTime, durationMinutes, onTimeUp]);
+    // cleanup on unmount
+    return () => {
+      console.log('[WS] cleanup');
+      ws.close();
+      wsRef.current = null;
+    };
+  }, []);
+
+  // ---------------- TIMER ----------------
+  useEffect(() => {
+    let rafId: number;
+    let intervalId: NodeJS.Timeout;
+    const startMs = new Date(startTime).getTime();
+    const endMs = startMs + durationMinutes * 60 * 1000;
+
+    const updateTime = () => {
+      const nowMs =
+        serverBaseMs && perfBase
+          ? serverBaseMs + (performance.now() - perfBase)
+          : Date.now();
+      const remaining = Math.max(0, Math.floor((endMs - nowMs) / 1000));
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        onTimeUp();
+      } else {
+        rafId = requestAnimationFrame(updateTime);
+      }
+    };
+
+    updateTime();
+    // eslint-disable-next-line prefer-const
+    intervalId = setInterval(() => updateTime(), 1000);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearInterval(intervalId);
+    };
+  }, [serverBaseMs, perfBase, startTime, durationMinutes, onTimeUp]);
 
   const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60)
+      .toString()
+      .padStart(2, '0');
     const s = (sec % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
+    return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
   };
 
   const handleFontSize = (size: 'small' | 'normal' | 'large') => {
@@ -122,6 +171,7 @@ export default function QuizNavigation({
 
   const gridMaxHeight = isMobile ? 260 : windowHeight - 250;
 
+  // ---------------- UI ----------------
   return (
     <Card sx={{ boxShadow: 3, borderRadius: 2, width: '100%', bgcolor: themePalette.primaryContrastText }}>
       {/* Header */}
@@ -170,101 +220,51 @@ export default function QuizNavigation({
 
       <Collapse in={expanded} timeout="auto" unmountOnExit>
         <CardContent sx={{ pt: 1, pb: 1 }}>
-          <Stack
-            direction="row"
-            spacing={1}
-            mb={1}
-            alignItems="center"
-            justifyContent={'space-between'}
-            display={'flex'}
-          >
+          <Stack direction="row" spacing={1} mb={1} alignItems="center" justifyContent="space-between" display="flex">
             <Tooltip title={showAll ? 'Fokus ke satu soal' : 'Perlihatkan semua soal'} arrow>
-            <Button
-  size="small"
-  variant="contained"
-  onClick={onToggleShowAll}
-  sx={{
-    flexGrow: 1,
-    minWidth: 'auto',
-    bgcolor: themePalette.primaryDark,
-    borderColor: themePalette.primaryDark,
-    color: themePalette.primaryContrastText,
-    '&:hover': {
-      bgcolor: themePalette.primaryLight, // warna saat hover
-      borderColor: themePalette.primaryLight,
-    },
-  }}
->
-  {showAll ? 'Semua soal' : 'Lihat 1 soal'}
-</Button>
-
-            </Tooltip>
-
-            <Tooltip title={'Ubah ukuran huruf'} arrow>
               <Button
                 size="small"
-                variant={fontSize === 'small' ? 'contained' : 'outlined'}
-                onClick={() => handleFontSize('small')}
+                variant="contained"
+                onClick={onToggleShowAll}
                 sx={{
                   flexGrow: 1,
                   minWidth: 'auto',
-                  fontSize: '14px',
-                  backgroundColor: fontSize === 'small' ? themePalette.primaryDark : themePalette.primaryLight,
-                  color: fontSize === 'small' ? themePalette.primaryContrastText : themePalette.textPrimary,
-                  borderColor: themePalette.primaryLight,
+                  bgcolor: themePalette.primaryDark,
+                  borderColor: themePalette.primaryDark,
+                  color: themePalette.primaryContrastText,
                   '&:hover': {
-      bgcolor: themePalette.primaryDark, // warna saat hover
-      borderColor: themePalette.primaryDark,
-    },
+                    bgcolor: themePalette.primaryLight,
+                    borderColor: themePalette.primaryLight,
+                  },
                 }}
               >
-                A-
+                {showAll ? 'Semua soal' : 'Lihat 1 soal'}
               </Button>
             </Tooltip>
 
-            <Tooltip title={'Ubah ukuran huruf'} arrow>
-              <Button
-                size="small"
-                variant={fontSize === 'normal' ? 'contained' : 'outlined'}
-                onClick={() => handleFontSize('normal')}
-                sx={{
-                  flexGrow: 1,
-                  minWidth: 'auto',
-                  fontSize: '16px',
-                  backgroundColor: fontSize === 'normal' ?  themePalette.primaryDark : themePalette.primaryLight,
-                  color: fontSize === 'normal' ? themePalette.primaryContrastText : themePalette.textPrimary,
-                 borderColor: themePalette.primaryLight,
-                  '&:hover': {
-      bgcolor: themePalette.primaryDark, // warna saat hover
-      borderColor: themePalette.primaryDark,
-    },
-                }}
-              >
-                A
-              </Button>
-            </Tooltip>
-
-            <Tooltip title={'Ubah ukuran huruf'} arrow>
-              <Button
-                size="small"
-                variant={fontSize === 'large' ? 'contained' : 'outlined'}
-                onClick={() => handleFontSize('large')}
-                sx={{
-                  flexGrow: 1,
-                  minWidth: 'auto',
-                  fontSize: '18px',
-                  backgroundColor: fontSize === 'large' ?  themePalette.primaryDark : themePalette.primaryLight,
-                  color: fontSize === 'large' ? themePalette.primaryContrastText : themePalette.textPrimary,
-                 borderColor: themePalette.primaryLight,
-                  '&:hover': {
-      bgcolor: themePalette.primaryDark, // warna saat hover
-      borderColor: themePalette.primaryDark,
-    },
-                }}
-              >
-                A+
-              </Button>
-            </Tooltip>
+            {['small', 'normal', 'large'].map((size) => (
+              <Tooltip key={size} title={'Ubah ukuran huruf'} arrow>
+                <Button
+                  size="small"
+                  variant={fontSize === size ? 'contained' : 'outlined'}
+                  onClick={() => handleFontSize(size as 'small' | 'normal' | 'large')}
+                  sx={{
+                    flexGrow: 1,
+                    minWidth: 'auto',
+                    fontSize: size === 'small' ? '14px' : size === 'normal' ? '16px' : '18px',
+                    backgroundColor: fontSize === size ? themePalette.primaryDark : themePalette.primaryLight,
+                    color: fontSize === size ? themePalette.primaryContrastText : themePalette.textPrimary,
+                    borderColor: themePalette.primaryLight,
+                    '&:hover': {
+                      bgcolor: themePalette.primaryDark,
+                      borderColor: themePalette.primaryDark,
+                    },
+                  }}
+                >
+                  {size === 'small' ? 'A-' : size === 'normal' ? 'A' : 'A+'}
+                </Button>
+              </Tooltip>
+            ))}
           </Stack>
 
           <Box
@@ -289,7 +289,7 @@ export default function QuizNavigation({
                 backgroundColor: themePalette.primaryLight,
                 borderRadius: '10px',
               },
-              '&::-webkit-scrollbar-thumb:hover': { backgroundColor: themePalette.primaryDark},
+              '&::-webkit-scrollbar-thumb:hover': { backgroundColor: themePalette.primaryDark },
               pb: '2px',
               pt: '4px',
             }}
@@ -313,7 +313,6 @@ export default function QuizNavigation({
                       : isAnswered
                       ? themePalette.primaryDark
                       : themePalette.primary,
-              
                     color: isSelected || isAnswered ? themePalette.primaryContrastText : themePalette.textPrimary,
                     fontSize: 13,
                     fontWeight: 500,
