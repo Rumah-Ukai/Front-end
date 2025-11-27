@@ -2,7 +2,7 @@
 import { Stack, Typography, Button, Box, Card, CardContent } from '@mui/material';
 
 
-import heroImg from '../../assets/tryout ukmppai gratis.png';
+import heroImg from '../../assets/tryout ukai gratis rumah ukai.svg';
 import { useEffect } from 'react';
 
 
