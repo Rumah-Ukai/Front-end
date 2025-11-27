@@ -19,160 +19,9 @@ import {
   useTheme,
   useMediaQuery,
   Box,
+  Skeleton,
 } from '@mui/material';
 import { tokensSet } from '../../theme/tokens';
-
-// interface Shape {
-//   id: number;
-//   x: number;
-//   size: number;
-//   type: 'circle' | 'square' | 'triangle';
-// }
-
-// const GlobalShapes: Shape[] = Array.from({ length: 10 }).map((_, i) => {
-//   const types: Shape['type'][] = ['circle', 'square', 'triangle'];
-//   return {
-//     id: i,
-//     x: Math.random() * 100,
-//     size: 20 + Math.random() * 200,
-//     type: types[Math.floor(Math.random() * types.length)],
-//   };
-// });
-
-// const colorPool = [
-//   '#E74C3C',
-//   '#3498DB',
-//   '#2ECC71',
-//   '#9B59B6',
-//   '#F39C12',
-//   '#1ABC9C',
-//   '#34495E',
-// ];
-// const shuffledColors = [...colorPool].sort(() => Math.random() - 0.5);
-// let colorIndex = 0;
-// const getUniqueColor = () => {
-//   if (colorIndex >= shuffledColors.length) colorIndex = 0;
-//   return shuffledColors[colorIndex++];
-// };
-
-// interface PackageCardProps {
-//   title: string;
-//   isMobile: boolean;
-// }
-// function PackageCard({ title, isMobile }: PackageCardProps) {
-//   const containerRef = useRef<HTMLDivElement>(null);
-//   const [bgColor] = useState(getUniqueColor);
-
-//   return (
-//     <Stack
-//       ref={containerRef}
-//       style={{
-//         width: '100%',
-//         height: isMobile ? '100px' : '140px',
-//         backgroundColor: bgColor,
-//         overflow: 'hidden',
-//         position: 'relative',
-//       }}
-//     >
-//       {GlobalShapes.map((s) => {
-//         const baseStyle: React.CSSProperties = {
-//           left: `${s.x}%`,
-//           width: s.size,
-//           height: s.size,
-//           transform: 'translateX(-50%)',
-//           position: 'absolute',
-//         };
-
-//         let shapeEl;
-//         const isFilled = Math.random() > 0.5;
-
-//         if (s.type === 'circle') {
-//           shapeEl = (
-//             <div
-//               style={{
-//                 ...baseStyle,
-//                 borderRadius: '50%',
-//                 border: isFilled ? 'none' : '3px solid white',
-//                 background: isFilled ? 'white' : 'inherit',
-//               }}
-//             />
-//           );
-//         } else if (s.type === 'square') {
-//           shapeEl = (
-//             <div
-//               style={{
-//                 ...baseStyle,
-//                 border: isFilled ? 'none' : '3px solid white',
-//                 background: isFilled ? 'white' : 'inherit',
-//               }}
-//             />
-//           );
-//         } else {
-//           shapeEl = (
-//             <div
-//               style={{
-//                 ...baseStyle,
-//                 width: 0,
-//                 height: 0,
-//                 borderLeft: `${s.size / 2}px solid transparent`,
-//                 borderRight: `${s.size / 2}px solid transparent`,
-//                 borderBottom: `${s.size}px solid white`,
-//                 background: 'inherit',
-//               }}
-//             />
-//           );
-//         }
-
-//         if (!isMobile) {
-//           return (
-//             <motion.div
-//               key={s.id}
-//               style={baseStyle}
-//               initial={{ top: -250 }}
-//               animate={{ top: '200vh' }}
-//               transition={{
-//                 duration: 18 + Math.random() * 30,
-//                 repeat: Infinity,
-//                 ease: 'linear',
-//                 delay: Math.random() * 100,
-//               }}
-//             >
-//               {shapeEl}
-//             </motion.div>
-//           );
-//         }
-
-//         return (
-//           <Stack
-//             key={s.id}
-//             style={{
-//               ...baseStyle,
-//               // backgroundColor: bgColor,
-//               top: `${0 + Math.random() * 60}%`,
-//             }}
-//           />
-//         );
-//       })}
-
-//       <Stack
-//         height={'100%'}
-//         sx={{
-//           zIndex: 5,
-//           color: isMobile ? 'white' : bgColor,
-//           fontSize: isMobile ? '18px' : '24px',
-//           fontWeight: 700,
-//           mixBlendMode: 'exclusion',
-//           alignItems: 'center',
-//           justifyContent: 'center',
-//           px: 2,
-//           textAlign: 'center',
-//         }}
-//       >
-//         {title}
-//       </Stack>
-//     </Stack>
-//   );
-// }
 
 interface PaketItem {
   id: string;
@@ -200,10 +49,10 @@ export default function PaketGrid() {
 
   // detection for 1440 breakpoint (for max card width)
   const underOrEqual1440 = useMediaQuery('(max-width:1440px)');
-const isTablet820 = useMediaQuery('(max-width:820px)');
-const isSmallScreen = useMediaQuery('(max-width:420px)');
-const is665 = useMediaQuery('(max-width:665px)');
-  // const navigate = useNavigate();
+  const isTablet820 = useMediaQuery('(max-width:820px)');
+  const isSmallScreen = useMediaQuery('(max-width:420px)');
+  const is665 = useMediaQuery('(max-width:665px)');
+
   const [palette, setPalette] = useState(tokensSet.palette1); // default
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -213,14 +62,7 @@ const is665 = useMediaQuery('(max-width:665px)');
    * - non-mobile: columns 2 (<=1440) or 3 (>1440), tetap menampilkan 6 items per page
    *   => rows = 6 / columns
    */
- const columns = isMobile
-  ? 1
-  : isTablet820
-  ? 1
-  : underOrEqual1440
-  ? 2
-  : 3;
-
+  const columns = isMobile ? 1 : isTablet820 ? 1 : underOrEqual1440 ? 2 : 3;
   const rows = Math.ceil(6 / columns);
   const itemsPerPage = isMobile ? 6 : columns * rows; // results in 6 for non-mobile
 
@@ -233,6 +75,9 @@ const is665 = useMediaQuery('(max-width:665px)');
 
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState('');
+
+  // NEW: loading flag for packages (used to show skeletons)
+  const [loadingItems, setLoadingItems] = useState(true);
 
   const formatDateIndo = (dateStr: string) => {
     try {
@@ -257,61 +102,72 @@ const is665 = useMediaQuery('(max-width:665px)');
   };
 
   useEffect(() => {
-    const fetchUserTheme = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const res = await fetch(`${API_BASE}/user`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const data = await res.json();
-          if (data.tema && typeof data.tema === 'string' && data.tema in tokensSet) {
-            setPalette(tokensSet[data.tema as keyof typeof tokensSet]);
-          }
-        } catch (error) {
-          console.error('Error fetching user theme:', error);
-        }
-      }
-    };
-
-    const fetchPakets = async () => {
+    // fetch all necessary data in parallel, show skeleton until done
+    const fetchAll = async () => {
+      setLoadingItems(true);
       try {
-        const response = await fetch(`${API_BASE}/pakets`);
-        const data = await response.json();
-        setItems(data);
-      } catch (error) {
-        console.error('Error fetching pakets:', error);
-      }
-    };
-
-    const fetchUserPakets = async () => {
-      try {
+        // fetch user theme (non-blocking)
         const token = localStorage.getItem('token');
-        if (!token) {
-          setUserPakets([]);
-          return;
-        }
-        const response = await fetch(`${API_BASE}/user-pakets`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const themePromise = (async () => {
+          if (!token) return;
+          try {
+            const res = await fetch(`${API_BASE}/user`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json();
+            if (data.tema && typeof data.tema === 'string' && data.tema in tokensSet) {
+              setPalette(tokensSet[data.tema as keyof typeof tokensSet]);
+            }
+          } catch (err) {
+            console.error('Error fetching user theme:', err);
+          }
+        })();
 
-        if (!response.ok) {
-          console.error('Failed to fetch user-pakets', response.status);
-          setUserPakets([]);
-          return;
-        }
+        // fetch pakets and user-pakets in parallel
+        const paketsPromise = (async () => {
+          try {
+            const response = await fetch(`${API_BASE}/pakets`);
+            const data = await response.json();
+            setItems(Array.isArray(data) ? data : []);
+          } catch (error) {
+            console.error('Error fetching pakets:', error);
+            setItems([]);
+          }
+        })();
 
-        const data: { id: string }[] = await response.json();
-        setUserPakets(data.map((p) => p.id));
-      } catch (error) {
-        console.error('Error fetching user pakets:', error);
-        setUserPakets([]);
+        const userPaketsPromise = (async () => {
+          try {
+            const tokenLocal = localStorage.getItem('token');
+            if (!tokenLocal) {
+              setUserPakets([]);
+              return;
+            }
+            const response = await fetch(`${API_BASE}/user-pakets`, {
+              headers: { Authorization: `Bearer ${tokenLocal}` },
+            });
+
+            if (!response.ok) {
+              console.error('Failed to fetch user-pakets', response.status);
+              setUserPakets([]);
+              return;
+            }
+
+            const data: { id: string }[] = await response.json();
+            setUserPakets(data.map((p) => p.id));
+          } catch (error) {
+            console.error('Error fetching user pakets:', error);
+            setUserPakets([]);
+          }
+        })();
+
+        await Promise.all([themePromise, paketsPromise, userPaketsPromise]);
+      } finally {
+        // ensure skeleton hides after attempts finish (success or fail)
+        setLoadingItems(false);
       }
     };
 
-    fetchUserTheme();
-    fetchPakets();
-    fetchUserPakets();
+    void fetchAll();
   }, []);
 
   const filteredItems = items.filter((item) => !userPakets.includes(item.id));
@@ -539,7 +395,64 @@ const is665 = useMediaQuery('(max-width:665px)');
   return (
     <Stack sx={{ width: '100%', alignItems: 'flex-start' }}>
       {/* Grid implemented with CSS grid for precise control */}
-      {currentItems.length === 0 ? (
+      {/* show skeleton while loadingItems === true */}
+      {loadingItems ? (
+        // SKELETON GRID
+        <Box
+          sx={{
+            width: '100%',
+            display: 'grid',
+            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+            gap: 2,
+            mt: 1,
+            alignItems: 'start',
+            gridAutoRows: 'auto',
+          }}
+        >
+          {Array.from({ length: itemsPerPage }).map((_, i) => (
+            <Box
+              key={`skeleton-${i}`}
+              sx={{
+                width: '100%',
+                display: 'flex',
+                justifyContent: 'center',
+                '@media (min-width:820px) and (max-width:1440px)': {
+                  justifyContent: i % 2 === 0 ? 'flex-end' : 'flex-start',
+                },
+                '@media (min-width:1441px)': {
+                  justifyContent: ['flex-end', 'center', 'flex-start'][i % 3],
+                },
+              }}
+            >
+              <Card
+                sx={{
+                  bgcolor: palette.primary + '11',
+                  borderRadius: 3,
+                  border: '1px solid',
+                  borderColor: palette.primary + '44',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  height: '100%',
+                  width: '100%',
+                  maxWidth: underOrEqual1440 ? 378 : 378,
+                  minWidth: 0,
+                }}
+              >
+                {/* image skeleton */}
+                <Skeleton variant="rectangular" height={140} />
+                <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Skeleton variant="text" width="70%" height={28} />
+                  <Skeleton variant="text" width="40%" height={20} />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                    <Skeleton variant="text" width="30%" height={36} />
+                    <Skeleton variant="rectangular" width={120} height={36} />
+                  </Box>
+                </CardContent>
+              </Card>
+            </Box>
+          ))}
+        </Box>
+      ) : currentItems.length === 0 ? (
         <Box sx={{ width: '100%', mt: 2 }}>
           <Stack
             sx={{
@@ -570,117 +483,113 @@ const is665 = useMediaQuery('(max-width:665px)');
             gridAutoRows: 'auto',
           }}
         >
-    
+          {currentItems.map((item, idx) => {
+            const justify = idx % 2 === 0 ? 'flex-end' : 'flex-start'; // untuk 820–1440px
+            const justifyXL = ['flex-end', 'center', 'flex-start'][idx % 3]; // untuk >1441px
+            const expired = item.closed_at ? isExpired(item.closed_at) : false;
 
-{currentItems.map((item, idx) => {
-  const justify = idx % 2 === 0 ? 'flex-end' : 'flex-start';        // untuk 820–1440px
-  const justifyXL = ['flex-end', 'center', 'flex-start'][idx % 3]; // untuk >1441px
-  const expired = item.closed_at ? isExpired(item.closed_at) : false;
-
-  return (
-    <Box
-      key={item.id}
-      sx={{
-        width: '100%',
-        display: 'flex',
-
-        // default → center
-        justifyContent: 'center',
-
-        // 820px–1440px → pakai justify ganjil/genap
-        '@media (min-width:820px) and (max-width:1440px)': {
-          justifyContent: justify,
-        },
-
-        // >1441px → pola flex-end → center → flex-start (berulang)
-        '@media (min-width:1441px)': {
-          justifyContent: justifyXL,
-        },
-      }}
-    >
-<Stack></Stack>
-      <Card
-        sx={{
-          // bgcolor: palette.primary,
-          borderColor:palette.primary,
-          border:'1px solid',
-          color:  palette.textSecondary,
-          borderRadius: 3,
-          cursor: 'pointer',
-          transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-          '&:hover': {
-            transform: 'scale(1.03)',
-            boxShadow: '0 0px 0px rgba(0,0,0,0.25)',
-          },
-          opacity: expired ? 0.8 : 1,
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
-          width: '100%',
-          maxWidth: underOrEqual1440 ?378 : 378,
-          minWidth: 0,
-        }}
-        onClick={() => setSelectedPaket(item)}
-      >
-        {/* isi card tetap sama */}
-        {!isSmallScreen && item.image ? (
-          <CardMedia component="img" height="140" image={item.image} alt={item.name} />
-        ) : (
-          // <PackageCard title={item.name} isMobile={isMobile} />
-          <Stack></Stack>
-        )}
-
-        <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, color: palette.btnSecondaryText }}>
-              {item.name}
-            </Typography>
-          </Box>
-
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ width: '100%' }}>
-            {/* closed_at info */}
-            {item.closed_at ? (
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: isExpired(item.closed_at) ? palette.error : palette.warning }}>
-                  {isExpired(item.closed_at) ? 'Ditutup:' : 'Tutup:'}
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: isExpired(item.closed_at) ? palette.error : palette.warning }}>
-                  {formatDateIndo(item.closed_at)}
-                </Typography>
-              </Box>
-            ) : (
-              <Box />
-            )}
-
-            {/* Price button */}
-            <Box sx={{ minWidth: 'auto', ml: isMobile ? 0 : 2 }} >
-              <Button
-                variant="contained"
-                fullWidth={isMobile}
-                onClick={() => {
-             
-                  handleBeliPaket(item);
-                }}
-                // disabled={processingId === item.id || expired}
+            return (
+              <Box
+                key={item.id}
                 sx={{
-                  backgroundColor: palette.primaryDark,
-                  color: palette.primaryContrastText,
-                  '&:hover': { backgroundColor: palette.primaryLight },
-                  textTransform: 'none',
-                  fontWeight: 700,
-                  whiteSpace: 'nowrap',
+                  width: '100%',
+                  display: 'flex',
+
+                  // default → center
+                  justifyContent: 'center',
+
+                  // 820px–1440px → pakai justify ganjil/genap
+                  '@media (min-width:820px) and (max-width:1440px)': {
+                    justifyContent: justify,
+                  },
+
+                  // >1441px → pola flex-end → center → flex-start (berulang)
+                  '@media (min-width:1441px)': {
+                    justifyContent: justifyXL,
+                  },
                 }}
               >
-                {processingId === item.id ? <CircularProgress size={18} color="inherit" /> : formatPrice(item.price)}
-              </Button>
-            </Box>
-          </Stack>
-        </CardContent>
-      </Card>
-    </Box>
-  );
-})}
+                <Stack></Stack>
+                <Card
+                  sx={{
+                    // bgcolor: palette.primary,
+                    borderColor: palette.primary,
+                    border: '1px solid',
+                    color: palette.textSecondary,
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                    '&:hover': {
+                      transform: 'scale(1.03)',
+                      boxShadow: '0 0px 0px rgba(0,0,0,0.25)',
+                    },
+                    opacity: expired ? 0.8 : 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '100%',
+                    width: '100%',
+                    maxWidth: underOrEqual1440 ? 378 : 378,
+                    minWidth: 0,
+                  }}
+                  onClick={() => setSelectedPaket(item)}
+                >
+                  {/* isi card tetap sama */}
+                  {!isSmallScreen && item.image ? (
+                    <CardMedia component="img" height="140" image={item.image} alt={item.name} />
+                  ) : (
+                    // <PackageCard title={item.name} isMobile={isMobile} />
+                    <Stack></Stack>
+                  )}
 
+                  <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 600, color: palette.btnSecondaryText }}>
+                        {item.name}
+                      </Typography>
+                    </Box>
+
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ width: '100%' }}>
+                      {/* closed_at info */}
+                      {item.closed_at ? (
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: isExpired(item.closed_at) ? palette.error : palette.warning }}>
+                            {isExpired(item.closed_at) ? 'Ditutup:' : 'Tutup:'}
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: isExpired(item.closed_at) ? palette.error : palette.warning }}>
+                            {formatDateIndo(item.closed_at)}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Box />
+                      )}
+
+                      {/* Price button */}
+                      <Box sx={{ minWidth: 'auto', ml: isMobile ? 0 : 2 }}>
+                        <Button
+                          variant="contained"
+                          fullWidth={isMobile}
+                          onClick={() => {
+                            handleBeliPaket(item);
+                          }}
+                          // disabled={processingId === item.id || expired}
+                          sx={{
+                            backgroundColor: palette.primaryDark,
+                            color: palette.primaryContrastText,
+                            '&:hover': { backgroundColor: palette.primaryLight },
+                            textTransform: 'none',
+                            fontWeight: 700,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {processingId === item.id ? <CircularProgress size={18} color="inherit" /> : formatPrice(item.price)}
+                        </Button>
+                      </Box>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Box>
+            );
+          })}
         </Box>
       )}
 
