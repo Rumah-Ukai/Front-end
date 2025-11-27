@@ -2,7 +2,7 @@
 import { Stack, Typography, Button, Box, Card, CardContent } from '@mui/material';
 
 
-import heroImg from '../../assets/tryout.png';
+import heroImg from '../../assets/tryout2.png';
 import { useEffect } from 'react';
 
 
