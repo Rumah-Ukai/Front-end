@@ -59,6 +59,7 @@ export default function Paketku() {
         <Typography
           sx={{
             fontWeight: 500,
+            mt:1,
             color: palette.btnSecondaryText,
             fontSize: { xs: '28px', sm: '45px', md: '60px' },
             textAlign: 'left',

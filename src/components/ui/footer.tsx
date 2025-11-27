@@ -1,139 +1,166 @@
-import { Stack, Typography } from '@mui/material';
+import { Stack, Typography} from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import '@fontsource/poppins/300.css';
 import '@fontsource/poppins/400.css';
 import '@fontsource/poppins/500.css';
 import '@fontsource/poppins/700.css';
 import '@fontsource/poppins/800.css';
+import { useEffect, useState } from 'react';
+import axios from 'axios';
+import { tokensSet } from '../../theme/tokens';
 import logoTripsel from '../../assets/logoukai.png';
+import Ads from '../adsense/ads'
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
-export default function Navbar() {
+export default function NavbarFooter() {
+  const navigate = useNavigate();
 
-  function handleTentangKamiClick() {
-    // navigate('/aboutus');
-  }
+  const [palette, setThemePalette] = useState(tokensSet.palette1);
+interface ThemeFromDB {
+  palette: keyof typeof tokensSet;
+}
 
-  function handleSocialMediaClick(url: string) {
-    window.open(`${url}`, '_blank');
-  }
+  // 🔹 Fetch tema user agar navbar ikut ganti
+  useEffect(() => {
+    const fetchTheme = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const res = await axios.get<ThemeFromDB>(`${API_BASE}/user`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.data?.palette && tokensSet[res.data.palette]) {
+          setThemePalette(tokensSet[res.data.palette]);
+        }
+      } catch (err) {
+        console.error('Gagal ambil tema', err);
+      }
+    };
+
+    void fetchTheme();
+  }, []);
+
+  const handleSocialMediaClick = (url: string) => {
+    window.open(url, '_blank');
+  };
 
   return (
+    <Stack direction={'column'}>
     <Stack 
-      direction={{ xs: 'column', md: 'row' }} 
+  width="100%" 
+  sx={{ 
+    backgroundColor: palette.primaryContrastText,
+    overflow: 'hidden' 
+  }}
+>
+  <Ads />
+</Stack>
+
+   
+    <Stack
+      direction={{ xs: 'column', md: 'row' }}
       sx={{
-        display: 'flex',
-        height: { xs: 'auto', md: '440px' },
         width: '100%',
-        margin: '0',
-        backgroundColor: 'white',
-        padding: { xs: '0px', md: '20' },
-        alignItems:'center',
+        padding: { xs: '20px', md: '40px' },
+        backgroundColor: palette.primaryContrastText,
+        color: palette.primaryContrastText,
+        alignItems: 'left',
+        justifyContent: 'left',
+        gap: { xs: 4, md: 10 },
       }}
     >
-      <Stack 
-        width={{ xs: '200px', md: '200px' }} 
-        sx={{
-          justifyContent:'center',
-          padding: { xs: '20px 0', md: '175px 100px' },
-          alignItems: 'center',
-          textAlign: { xs: 'center', md: 'center' },
-        }}
-      >
-        <img src={logoTripsel} alt="Logo Tripsel" width={'100%'} />
-        <Stack direction='row' gap={1} paddingTop={1} justifyContent={{ xs: 'center', md: 'flex-start' }}>
-  
-        </Stack>
+      {/* LOGO */}
+   <Stack
+  width={{ xs: 150, sm: 200, md: 200, lg: 260 }}
+  alignItems={{ xs: 'center', md: 'flex-start' }}
+  justifyContent={{ xs: 'center', md: 'flex-start' }}
+  sx={{
+    margin: { xs: '0 auto', md: 0 }, // agar auto-center di mobile
+  }}
+>
+
+        <img
+          src={logoTripsel}
+          alt="Logo Tripsel"
+          style={{ width: '100%', height: 'auto' }}
+        />
       </Stack>
 
-      <Stack 
+      {/* TEXT SECTION */}
+      <Stack
         sx={{
-          padding: { xs: '20px', md: '50px' },
           textAlign: { xs: 'center', md: 'left' },
-          alignItems: { xs: 'center', md: 'flex-start' },
+          color: palette.btnSecondaryText,
         }}
       >
-        <Typography sx={{
-          color: '#04214c',
-          fontWeight: 600,
-          fontSize: { xs: 20, md: 25 },
-        }}>
-          Tentang Rumah Ukai
-        </Typography>
-
         <Typography
           sx={{
-            color: '#04214c',
-            fontWeight: 400,
-            fontSize: { xs: 18, md: 20 },
-            paddingTop: 1,
-            cursor: 'pointer',
+            fontWeight: 600,
+            fontSize: { xs: 20, md: 24 },
+            color: palette.btnSecondaryText,
           }}
-          onClick={handleTentangKamiClick}
         >
           Tentang Kami
         </Typography>
-        <Typography
+
+      <Typography
           sx={{
-            color: '#04214c',
             fontWeight: 400,
-            fontSize: { xs: 18, md: 20 },
+            fontSize: { xs: 16, md: 18 },
             paddingTop: 1,
             cursor: 'pointer',
+            color: palette.btnSecondaryText,
+          }}
+          onClick={() =>
+           navigate(`/tentang-kami`)
+          }
+        >
+          Rumah Ukai
+ </Typography>
+        <Typography
+          sx={{
+            fontWeight: 600,
+            fontSize: { xs: 20, md: 24 },
+            paddingTop: 4,
+            color: palette.btnSecondaryText,
           }}
         >
-          Kontak
-        </Typography>
-
-        <Typography sx={{
-          color: '#04214c',
-          fontWeight: 600,
-          fontSize: { xs: 20, md: 25 },
-          paddingTop: '46px',
-        }}>
           Ikuti Rumah Ukai
         </Typography>
+
         <Typography
           sx={{
-            color: '#04214c',
             fontWeight: 400,
-            fontSize: { xs: 18, md: 20 },
+            fontSize: { xs: 16, md: 18 },
             paddingTop: 1,
             cursor: 'pointer',
+            color: palette.btnSecondaryText,
           }}
-          onClick={() => handleSocialMediaClick('https://www.instagram.com/trip.sel?igsh=c3B3Njg2emNpeHl0')}
+          onClick={() =>
+            handleSocialMediaClick('https://www.instagram.com/rumah.ukai/')
+          }
         >
           Instagram
         </Typography>
 
         <Typography
           sx={{
-            color: '#04214c',
             fontWeight: 400,
-            fontSize: { xs: 18, md: 20 },
+            fontSize: { xs: 16, md: 18 },
             paddingTop: 1,
             cursor: 'pointer',
+            color: palette.btnSecondaryText,
           }}
-          onClick={() => handleSocialMediaClick('https://www.tiktok.com/@tripwithtelkomsel?_t=8mgAFMj8Esi&_r=1')}
+          onClick={() =>
+            handleSocialMediaClick('https://www.tiktok.com/@rumah.ukai')
+          }
         >
           TikTok
         </Typography>
-
-        <Typography
-          sx={{
-            color: '#04214c',
-            fontWeight: 400,
-            fontSize: { xs: 18, md: 20 },
-            paddingTop: 1,
-            cursor: 'pointer',
-          }}
-          onClick={() => handleSocialMediaClick('https://youtube.com/@tripsel?si=O7GZD7Q0Wyb6SL82')}
-        >
-          YouTube
-        </Typography>
-
       </Stack>
-
-    
-    
     </Stack>
+     </Stack>
   );
 }

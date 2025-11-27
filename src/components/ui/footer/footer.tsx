@@ -1,5 +1,5 @@
 
-// import { footerLogo } from '../assets/images';
+// import  footerLogo  from '../../../assets/logoukai.png';
 // import { socialMedia, footerLinks } from '../..';
 // import { copyrightSign } from '../assets/icons';
 // import type { ISocialMedia, IFooterSection, IFooterLink } from '../types';

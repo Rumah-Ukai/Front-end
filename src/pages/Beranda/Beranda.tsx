@@ -62,6 +62,7 @@ export default function Beranda() {
             fontSize: { xs: '28px', sm: '45px', md: '60px' },
             textAlign: 'left',
             width: '100%',
+            mt:1,
           }}
         >
           Paket Try out

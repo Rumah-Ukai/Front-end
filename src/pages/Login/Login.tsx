@@ -186,6 +186,7 @@ export default function AuthPage(): JSX.Element {
   return (
     <Box
       sx={{
+        bgcolor: 'white',
         width: '100%',
         minHeight: '100vh',
         overflow: 'hidden', // ✅ solusi WebView bug
@@ -201,6 +202,7 @@ export default function AuthPage(): JSX.Element {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            background: 'transparent',
           }}
         >
           <Stack height="100%" justifyContent="center" alignItems="center">
@@ -208,6 +210,7 @@ export default function AuthPage(): JSX.Element {
               sx={{
                 borderRadius: 4,
                 boxShadow: 6,
+                background: 'transparent',
               }}
             >
               <img
@@ -234,7 +237,7 @@ export default function AuthPage(): JSX.Element {
           <Box sx={{ width: '100%', maxWidth: 520 }}>
             <Stack spacing={3}>
               <Stack>
-                <Typography variant="h3" sx={{ fontWeight: 700 }}>
+                <Typography variant="h3" sx={{ fontWeight: 700, color: 'text.primary' }}>
                   {mode === 'login' && 'Masuk'}
                   {mode === 'register' && 'Daftar'}
                   {mode === 'forgot' && 'Lupa Password'}
@@ -243,7 +246,7 @@ export default function AuthPage(): JSX.Element {
                 </Typography>
                 <Typography
                   variant="subtitle1"
-                  sx={{ color: 'white', fontWeight: 500 }}
+                  sx={{ color: 'text.secondary', fontWeight: 500 }}
                 >
                   {mode === 'login' && 'Selamat datang di Rumah Ukai'}
                   {mode === 'register' && 'Isi email & password untuk membuat akun'}
@@ -269,80 +272,74 @@ export default function AuthPage(): JSX.Element {
                 )}
               </Stack>
               {/* FORM */}
-              <Stack spacing={2}  >
+              <Stack spacing={2}>
                 {/* Email always shown but readonly in verify modes */}
                 <TextField
-  label="Email"
-  sx={{
-    input: { color: 'white' }, // teks input putih normal
-    '& .MuiInputBase-input::placeholder': {
-      color: 'white',
-      opacity: 0.8,
-    },
-    '& .MuiOutlinedInput-root': {
-      '& fieldset': { borderColor: 'white' },
-      '&:hover fieldset': { borderColor: 'white' },
-      '&.Mui-focused fieldset': { borderColor: 'white' },
-    },
-    '& .MuiInputLabel-root': {
-      color: 'white',
-    },
-    '& .MuiInputLabel-root.Mui-focused': {
-      color: 'white',
-    },
-    // fix autofill
-    '& input:-webkit-autofill': {
-      WebkitBoxShadow: '0 0 0 1000px #64483D inset', // ganti #121212 sesuai background form kamu
-      WebkitTextFillColor: 'white', // tetap putih
-      caretColor: 'white',
-    },
-  }}
-  value={email}
-  onChange={(e) => setEmail(e.target.value)}
-  fullWidth
-  size="medium"
-  InputProps={{
-    readOnly: isEmailReadOnly,
-  }}
-/>
-
+                  label="Email"
+                  sx={{
+                    input: { color: '#000' },
+                    '& .MuiInputBase-input::placeholder': {
+                      color: '#000',
+                      opacity: 0.6,
+                    },
+                    '& .MuiOutlinedInput-root': {
+                      '& fieldset': { borderColor: '#000' },
+                      '&:hover fieldset': { borderColor: '#000' },
+                      '&.Mui-focused fieldset': { borderColor: '#000' },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#000',
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: '#000',
+                    },
+                    // fix autofill
+                    '& input:-webkit-autofill': {
+                      WebkitBoxShadow: '0 0 0 1000px #fff inset',
+                      WebkitTextFillColor: '#000',
+                      caretColor: '#000',
+                    },
+                  }}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  fullWidth
+                  size="medium"
+                  InputProps={{
+                    readOnly: isEmailReadOnly,
+                  }}
+                />
 
                 {/* Login & Register password */}
                 {(mode === 'login' || mode === 'register') && (
                   <TextField
                     label="Password"
-                   sx={{
-  input: { color:'white' },
-  '& .MuiOutlinedInput-root': {
-    '& fieldset': { borderColor: 'white' },
-    '&:hover fieldset': { borderColor: 'white' },
-    '&.Mui-focused fieldset': { borderColor: 'white' },
-
-    // override autofill
-    '& input:-webkit-autofill': {
-      WebkitBoxShadow: `0 0 0 1000px 'white' inset`,
-      WebkitTextFillColor:'white',
-      transition: 'background-color 5000s ease-in-out 0s',
-    },
-  },
-  '& .MuiInputLabel-root': { color: 'white' },
-  '& .MuiInputLabel-root.Mui-focused': { color: 'white' },
-}}
-
+                    sx={{
+                      input: { color: '#000' },
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': { borderColor: '#000' },
+                        '&:hover fieldset': { borderColor: '#000' },
+                        '&.Mui-focused fieldset': { borderColor: '#000' },
+                        '& input:-webkit-autofill': {
+                          WebkitBoxShadow: '0 0 0 1000px #fff inset',
+                          WebkitTextFillColor: '#000',
+                          transition: 'background-color 5000s ease-in-out 0s',
+                        },
+                      },
+                      '& .MuiInputLabel-root': { color: '#000' },
+                      '& .MuiInputLabel-root.Mui-focused': { color: '#000' },
+                    }}
                     type={'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     fullWidth
                     InputProps={{
                       endAdornment: (
-                        <InputAdornment position="end" >
-                         
-                        </InputAdornment>
+                        <InputAdornment position="end"></InputAdornment>
                       ),
                     }}
-                      FormHelperTextProps={{
-    sx: { color: 'white' }, // bikin helperText putih
-  }}
+                    FormHelperTextProps={{
+                      sx: { color: '#000' }, // helperText hitam
+                    }}
                     helperText={mode === 'register' ? 'Password minimal 5 karakter' : undefined}
                     error={mode === 'register' && password.length > 0 && !validatePasswordLen(password)}
                   />
@@ -356,89 +353,82 @@ export default function AuthPage(): JSX.Element {
                     onChange={(e) => setCode(e.target.value)}
                     fullWidth
                     sx={{
-    input: { color: 'white' }, // teks input putih normal
-    '& .MuiInputBase-input::placeholder': {
-      color: 'white',
-      opacity: 0.8,
-    },
-    '& .MuiOutlinedInput-root': {
-      '& fieldset': { borderColor: 'white' },
-      '&:hover fieldset': { borderColor: 'white' },
-      '&.Mui-focused fieldset': { borderColor: 'white' },
-    },
-    '& .MuiInputLabel-root': {
-      color: 'white',
-    },
-    '& .MuiInputLabel-root.Mui-focused': {
-      color: 'white',
-    },
-    // fix autofill
-    '& input:-webkit-autofill': {
-      WebkitBoxShadow: '0 0 0 1000px #64483D inset', // ganti #121212 sesuai background form kamu
-      WebkitTextFillColor: 'white', // tetap putih
-      caretColor: 'white',
-    },
-  }}
+                      input: { color: '#000' },
+                      '& .MuiInputBase-input::placeholder': {
+                        color: '#000',
+                        opacity: 0.6,
+                      },
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': { borderColor: '#000' },
+                        '&:hover fieldset': { borderColor: '#000' },
+                        '&.Mui-focused fieldset': { borderColor: '#000' },
+                      },
+                      '& .MuiInputLabel-root': {
+                        color: '#000',
+                      },
+                      '& .MuiInputLabel-root.Mui-focused': {
+                        color: '#000',
+                      },
+                      '& input:-webkit-autofill': {
+                        WebkitBoxShadow: '0 0 0 1000px #fff inset',
+                        WebkitTextFillColor: '#000',
+                        caretColor: '#000',
+                      },
+                    }}
                     helperText="Masukkan kode 6-digit yang dikirim ke email Anda"
                   />
                 )}
 
                 {mode === 'verify-forgot' && (
                   <>
-                    <TextField  sx={{
-    input: { color: 'white' }, // teks input putih normal
-    '& .MuiInputBase-input::placeholder': {
-      color: 'white',
-      opacity: 0.8,
-    },
-    '& .MuiOutlinedInput-root': {
-      '& fieldset': { borderColor: 'white' },
-      '&:hover fieldset': { borderColor: 'white' },
-      '&.Mui-focused fieldset': { borderColor: 'white' },
-    },
-    '& .MuiInputLabel-root': {
-      color: 'white',
-    },
-    '& .MuiInputLabel-root.Mui-focused': {
-      color: 'white',
-    },
-    // fix autofill
-    '& input:-webkit-autofill': {
-      WebkitBoxShadow: '0 0 0 1000px #64483D inset', // ganti #121212 sesuai background form kamu
-      WebkitTextFillColor: 'white', // tetap putih
-      caretColor: 'white',
-    },
-  }} label="Kode verifikasi" value={code} onChange={(e) => setCode(e.target.value)} fullWidth />
+                    <TextField
+                      sx={{
+                        input: { color: '#000' },
+                        '& .MuiOutlinedInput-root': {
+                          '& fieldset': { borderColor: '#000' },
+                          '&:hover fieldset': { borderColor: '#000' },
+                          '&.Mui-focused fieldset': { borderColor: '#000' },
+                          '& input:-webkit-autofill': {
+                            WebkitBoxShadow: '0 0 0 1000px #fff inset',
+                            WebkitTextFillColor: '#000',
+                          },
+                        },
+                        '& .MuiInputLabel-root': {
+                          color: '#000',
+                        },
+                        '& .MuiInputLabel-root.Mui-focused': {
+                          color: '#000',
+                        },
+                      }}
+                      label="Kode verifikasi"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                      fullWidth
+                    />
                     <TextField
                       label="Password baru"
                       type="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       fullWidth
-                       sx={{
-    input: { color: 'white' }, // teks input putih normal
-    '& .MuiInputBase-input::placeholder': {
-      color: 'white',
-      opacity: 0.8,
-    },
-    '& .MuiOutlinedInput-root': {
-      '& fieldset': { borderColor: 'white' },
-      '&:hover fieldset': { borderColor: 'white' },
-      '&.Mui-focused fieldset': { borderColor: 'white' },
-    },
-    '& .MuiInputLabel-root': {
-      color: 'white',
-    },
-    '& .MuiInputLabel-root.Mui-focused': {
-      color: 'white',
-    },
-    // fix autofill
-    '& input:-webkit-autofill': {
-      WebkitBoxShadow: '0 0 0 1000px #64483D inset', // ganti #121212 sesuai background form kamu
-      WebkitTextFillColor: 'white', // tetap putih
-      caretColor: 'white',
-    },
-  }}
+                      sx={{
+                        input: { color: '#000' },
+                        '& .MuiOutlinedInput-root': {
+                          '& fieldset': { borderColor: '#000' },
+                          '&:hover fieldset': { borderColor: '#000' },
+                          '&.Mui-focused fieldset': { borderColor: '#000' },
+                          '& input:-webkit-autofill': {
+                            WebkitBoxShadow: '0 0 0 1000px #fff inset',
+                            WebkitTextFillColor: '#000',
+                          },
+                        },
+                        '& .MuiInputLabel-root': {
+                          color: '#000',
+                        },
+                        '& .MuiInputLabel-root.Mui-focused': {
+                          color: '#000',
+                        },
+                      }}
                       helperText="Minimal 5 karakter"
                       error={newPassword.length > 0 && !validatePasswordLen(newPassword)}
                     />
@@ -447,152 +437,166 @@ export default function AuthPage(): JSX.Element {
               </Stack>
 
               {/* ACTION BUTTONS */}
-             <Stack direction="row"   spacing={isMobile ? 0 : 2} // kalau mobile, hilangkan spacing kiri
- alignItems="center" flexWrap="wrap">
-  {mode === 'login' && (
-    <>
-      <Button
-        onClick={handleLogin}
-        disabled={loading}
-        sx={{
-          px: 4,
-          bgcolor: '#462011',
-          color: 'white',
-          '&:hover': { bgcolor: '#5a2a17' },
-        }}
-      >
-        {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Masuk'}
-      </Button>
-      <Button
-        onClick={() => { clearMsgs(); setMode('forgot'); }}
-        sx={{
-          
-          // bgcolor: '#462011',
-          color: 'white',
-          '&:hover': { bgcolor: '#5a2a17' },
-        }}
-      >
-        Lupa Password
-      </Button>
-      <Button
-        onClick={() => { clearMsgs(); setMode('register'); }}
-        sx={{
-          // bgcolor: '#462011',
-          color: 'white',
-          '&:hover': { bgcolor: '#5a2a17' },
-        }}
-      >
-        Registrasi
-      </Button>
-    </>
-  )}
+              <Stack
+                direction="row"
+                spacing={isMobile ? 0 : 2}
+                alignItems="center"
+                flexWrap="wrap"
+              >
+                {mode === 'login' && (
+                  <>
+                    <Button
+                      onClick={handleLogin}
+                      disabled={loading}
+                      sx={{
+                        px: 4,
+                        bgcolor: '#462011',
+                        color: 'white',
+                        '&:hover': { bgcolor: '#5a2a17' },
+                      }}
+                    >
+                      {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Masuk'}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        clearMsgs();
+                        setMode('forgot');
+                      }}
+                      sx={{
+                        color: '#000',
+                        '&:hover': { bgcolor: '#eee' },
+                      }}
+                    >
+                      Lupa Password
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        clearMsgs();
+                        setMode('register');
+                      }}
+                      sx={{
+                        color: '#000',
+                        '&:hover': { bgcolor: '#eee' },
+                      }}
+                    >
+                      Registrasi
+                    </Button>
+                  </>
+                )}
 
-  {mode === 'register' && (
-    <>
-      <Button
-        onClick={handleRegister}
-        disabled={loading}
-        sx={{
-          px: 4,
-          bgcolor: '#462011',
-          color: 'white',
-          '&:hover': { bgcolor: '#5a2a17' },
-        }}
-      >
-        {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Kirim Kode (Daftar)'}
-      </Button>
-      <Button
-        onClick={() => { clearMsgs(); setMode('login'); }}
-        sx={{
-          // bgcolor: '#462011',
-          color: 'white',
-          '&:hover': { bgcolor: '#5a2a17' },
-        }}
-      >
-        Kembali ke Login
-      </Button>
-    </>
-  )}
+                {mode === 'register' && (
+                  <>
+                    <Button
+                      onClick={handleRegister}
+                      disabled={loading}
+                      sx={{
+                        px: 4,
+                        bgcolor: '#462011',
+                        color: 'white',
+                        '&:hover': { bgcolor: '#5a2a17' },
+                      }}
+                    >
+                      {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Kirim Kode (Daftar)'}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        clearMsgs();
+                        setMode('login');
+                      }}
+                      sx={{
+                        color: '#000',
+                        '&:hover': { bgcolor: '#eee' },
+                      }}
+                    >
+                      Kembali ke Login
+                    </Button>
+                  </>
+                )}
 
-  {mode === 'verify-register' && (
-    <>
-      <Button
-        onClick={handleRegisterVerify}
-        disabled={loading}
-        sx={{
-          bgcolor: '#462011',
-          color: 'white',
-          '&:hover': { bgcolor: '#5a2a17' },
-        }}
-      >
-        {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Verifikasi & Masuk'}
-      </Button>
-      <Button
-        onClick={() => { clearMsgs(); setMode('register'); }}
-        sx={{
-          // bgcolor: '#462011',
-          color: 'white',
-          '&:hover': { bgcolor: '#5a2a17' },
-        }}
-      >
-        Kembali
-      </Button>
-    </>
-  )}
+                {mode === 'verify-register' && (
+                  <>
+                    <Button
+                      onClick={handleRegisterVerify}
+                      disabled={loading}
+                      sx={{
+                        bgcolor: '#462011',
+                        color: 'white',
+                        '&:hover': { bgcolor: '#5a2a17' },
+                      }}
+                    >
+                      {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Verifikasi & Masuk'}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        clearMsgs();
+                        setMode('register');
+                      }}
+                      sx={{
+                        color: '#000',
+                        '&:hover': { bgcolor: '#eee' },
+                      }}
+                    >
+                      Kembali
+                    </Button>
+                  </>
+                )}
 
-  {mode === 'forgot' && (
-    <>
-      <Button
-        onClick={handleForgotSend}
-        disabled={loading}
-        sx={{
-          bgcolor: '#462011',
-          color: 'white',
-          '&:hover': { bgcolor: '#5a2a17' },
-        }}
-      >
-        {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Kirim Kode'}
-      </Button>
-      <Button
-        onClick={() => { clearMsgs(); setMode('login'); }}
-        sx={{
-          // bgcolor: '#462011',
-          color: 'white',
-          '&:hover': { bgcolor: '#5a2a17' },
-        }}
-      >
-        Kembali
-      </Button>
-    </>
-  )}
+                {mode === 'forgot' && (
+                  <>
+                    <Button
+                      onClick={handleForgotSend}
+                      disabled={loading}
+                      sx={{
+                        bgcolor: '#462011',
+                        color: 'white',
+                        '&:hover': { bgcolor: '#5a2a17' },
+                      }}
+                    >
+                      {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Kirim Kode'}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        clearMsgs();
+                        setMode('login');
+                      }}
+                      sx={{
+                        color: '#000',
+                        '&:hover': { bgcolor: '#eee' },
+                      }}
+                    >
+                      Kembali
+                    </Button>
+                  </>
+                )}
 
-  {mode === 'verify-forgot' && (
-    <>
-      <Button
-        onClick={handleForgotVerify}
-        disabled={loading}
-        sx={{
-          bgcolor: '#462011',
-          color: 'white',
-          '&:hover': { bgcolor: '#5a2a17' },
-        }}
-      >
-        {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Ganti Password'}
-      </Button>
-      <Button
-        onClick={() => { clearMsgs(); setMode('login'); }}
-        sx={{
-          // bgcolor: '#462011',
-          color: 'white',
-          '&:hover': { bgcolor: '#5a2a17' },
-        }}
-      >
-        Kembali
-      </Button>
-    </>
-  )}
-</Stack>
-
+                {mode === 'verify-forgot' && (
+                  <>
+                    <Button
+                      onClick={handleForgotVerify}
+                      disabled={loading}
+                      sx={{
+                        bgcolor: '#462011',
+                        color: 'white',
+                        '&:hover': { bgcolor: '#5a2a17' },
+                      }}
+                    >
+                      {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Ganti Password'}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        clearMsgs();
+                        setMode('login');
+                      }}
+                      sx={{
+                        color: '#000',
+                        '&:hover': { bgcolor: '#eee' },
+                      }}
+                    >
+                      Kembali
+                    </Button>
+                  </>
+                )}
+              </Stack>
             </Stack>
           </Box>
         </Grid>

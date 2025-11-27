@@ -110,7 +110,8 @@ export default function Quiz(): JSX.Element {
 
   const questionRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const [activeInViewId, setActiveInViewId] = useState<number | null>(null);
-
+document.body.style.backgroundColor = 'white';
+document.documentElement.style.backgroundColor ='white';
   const parseHeaders = (headers?: string[] | string | null): string[] | undefined => {
     if (!headers) return undefined;
     if (Array.isArray(headers)) return headers;
@@ -674,6 +675,7 @@ export default function Quiz(): JSX.Element {
       <Stack
         direction={isMobile ? 'column' : 'row'}
         spacing={4}
+        // height={'100%'}
         sx={{
           paddingX: '20px',
           mx: 'auto',
@@ -685,7 +687,7 @@ export default function Quiz(): JSX.Element {
             lg: '520px',
             xl: '560px',
           },
-          bgcolor:themePalette.primary
+          bgcolor:'white'
         }}
         alignItems="stretch"
       >
@@ -872,14 +874,14 @@ export default function Quiz(): JSX.Element {
         )}
       </Stack>
 
-      {!isMobile && (
+      
         <Box
           sx={{
             position: 'fixed',
             bottom: 0,
             left: 0,
             width: '100%',
-            bgcolor: themePalette.primary,
+            bgcolor: 'white',
             p: 1,
             zIndex: 20,
           }}
@@ -907,7 +909,7 @@ export default function Quiz(): JSX.Element {
             {`${Math.round(progressPercent)}% terjawab`}
           </Typography>
         </Box>
-      )}
+ 
 
       {/* Dialog konfirmasi finalisasi */}
       <Dialog
@@ -922,15 +924,15 @@ export default function Quiz(): JSX.Element {
   <DialogTitle
     id="confirm-finalize-dialog"
     sx={{
-      backgroundColor: themePalette.surface,
-      color: themePalette.primaryDark,
+      backgroundColor: themePalette.error,
+      color: themePalette.primaryContrastText,
       fontWeight: 'bold',
     }}
   >
     Konfirmasi Penyelesaian Ujian
   </DialogTitle>
-  <DialogContent sx={{ backgroundColor: themePalette.surface }}>
-    <DialogContentText sx={{ color: themePalette.textPrimary }}>
+  <DialogContent sx={{ backgroundColor: themePalette.primaryContrastText }}>
+    <DialogContentText sx={{ color: themePalette.btnSecondaryText }}>
       {unansweredCount === 0 ? (
         <>Kamu telah menjawab semua pertanyaan. Apakah kamu yakin ingin menyelesaikan ujian dan melakukan finalisasi?</>
       ) : (
@@ -940,8 +942,8 @@ export default function Quiz(): JSX.Element {
       )}
     </DialogContentText>
   </DialogContent>
-  <DialogActions sx={{ backgroundColor: themePalette.surface }}>
-    <Button onClick={() => setConfirmOpen(false)} disabled={isFinalizing} sx={{ color: themePalette.textPrimary }}>
+  <DialogActions sx={{ backgroundColor: themePalette.primaryContrastText }}>
+    <Button onClick={() => setConfirmOpen(false)} disabled={isFinalizing} sx={{ color: themePalette.btnSecondaryText }}>
       Batal
     </Button>
     <Button
@@ -949,9 +951,9 @@ export default function Quiz(): JSX.Element {
       variant="contained"
       disabled={isFinalizing}
       sx={{
-        backgroundColor: themePalette.primary,
+        backgroundColor: themePalette.primaryDark,
         color: themePalette.primaryContrastText,
-        '&:hover': { backgroundColor: themePalette.primaryDark },
+        '&:hover': { backgroundColor: themePalette.primaryLight },
       }}
     >
       {isFinalizing ? 'Memproses...' : 'Ya, lanjutkan'}

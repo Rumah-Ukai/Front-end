@@ -176,14 +176,20 @@ export default function Paket() {
           ← Kembali
         </Button>
       </Box>
-
+      <Stack spacing={1}>
       <Typography
         variant="h4"
         sx={{ fontWeight: 'bold', color: palette.btnSecondaryText }}
       >
-        Daftar Tryout Paket
+        Tryout
       </Typography>
-
+ <Typography
+        variant="body1"
+        sx={{color: palette.btnSecondaryText,margin:0 }}
+      >
+        Buka pembasan dengan mengikuti tryout 
+      </Typography>
+      </Stack>
       {tryouts.length === 0 ? (
         <Typography>Tidak ada tryout untuk paket ini</Typography>
       ) : (
@@ -231,7 +237,7 @@ export default function Paket() {
                         </Typography>
                         <Typography
                           variant="caption"
-                          color={palette.textSecondary}
+                          color={palette.primaryContrastText}
                         >
                           Nilai Terbaik
                         </Typography>
@@ -254,7 +260,7 @@ export default function Paket() {
                       },
                     }}
                   >
-                    Buka Tryout
+                    Tryout
                   </Button>
 
                   {tryout.pdf_url && (
@@ -271,7 +277,7 @@ export default function Paket() {
                         },
                       }}
                     >
-                      Buka PDF
+                      Pembahasan
                     </Button>
                   )}
                 </Stack>

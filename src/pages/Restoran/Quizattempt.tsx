@@ -1,4 +1,5 @@
 // src/pages/Tryout.tsx
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useState, useCallback } from 'react';
 import {
   Stack,
@@ -57,6 +58,15 @@ interface QuestionRowFromServer {
   answer_key: string;
 }
 
+interface RankingResponse {
+  tryoutId?: string;
+  attemptNumber?: number;
+  rank: number | null;
+  total: number;
+  text?: string;
+  message?: string;
+}
+
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
 export default function Tryout() {
@@ -73,7 +83,11 @@ export default function Tryout() {
   const [now, setNow] = useState<number>(Date.now());
   const [palette, setPalette] = useState(tokensSet.palette1);
   const [paketExpired, setPaketExpired] = useState(false);
- const [paketId, setPaketId] = useState('');
+  const [paketId, setPaketId] = useState('');
+
+  // mapping attempt.id -> "rank/total" (string). '-' when unavailable.
+  const [rankings, setRankings] = useState<Record<number, string>>({});
+
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
@@ -143,7 +157,8 @@ export default function Tryout() {
           `${API_BASE}/quizattempt/${encodeURIComponent(tryoutId)}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        setAttempts(Array.isArray(attemptRes.data) ? attemptRes.data : []);
+        const attemptRows = Array.isArray(attemptRes.data) ? attemptRes.data : [];
+        setAttempts(attemptRows);
       } catch (err) {
         console.error(err);
         setError('Gagal mengambil data tryout');
@@ -258,7 +273,8 @@ export default function Tryout() {
   const handleContinueAttempt = (a: Attempt) => {
     navigate(`/quiz?tryoutId=${a.tryout_id}&attempt=${a.attempt_number}`);
   };
-     useEffect(() => {
+
+  useEffect(() => {
     if (!tryoutId) return;
 
     const token = localStorage.getItem('token');
@@ -274,6 +290,7 @@ export default function Tryout() {
       })
       .finally(() => setLoading(false));
   }, [tryoutId]);
+
   const handleBackClick = () => {
     if (paketId) {
       navigate(`/paketku?id=${paketId}`);
@@ -387,13 +404,81 @@ export default function Tryout() {
     return 'N/A';
   })();
 
+  // ---------- RANKINGS FETCH (frontend) ----------
+  // For each finished attempt, request backend ranking endpoint and store in `rankings`.
+  useEffect(() => {
+    let mounted = true;
+    const token = localStorage.getItem('token');
+    if (!token || !tryoutId) return;
+
+    const finishedAttempts = attempts.filter(a => a.grade !== null && a.submitted_at);
+
+    if (finishedAttempts.length === 0) {
+      // clear rankings for safety
+      if (mounted) setRankings({});
+      return;
+    }
+
+    // Only fetch for attempts that we don't already have in `rankings`
+    const toFetch = finishedAttempts.filter(a => !(a.id in rankings));
+
+    if (toFetch.length === 0) return;
+
+    (async () => {
+      try {
+        const promises = toFetch.map(async (a) => {
+          try {
+            const res = await axios.get<RankingResponse>(
+              `${API_BASE}/quizattempt/ranking/${encodeURIComponent(a.tryout_id)}/${encodeURIComponent(String(a.attempt_number))}`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            const data = res.data;
+            // backend returns rank (number|null) and total (number)
+            if (data && typeof data.rank === 'number' && typeof data.total === 'number' && data.total > 0) {
+              return { id: a.id, text: `${data.rank}/${data.total}` };
+            }
+            // if backend returns text already
+            if (data && data.text) {
+              return { id: a.id, text: data.text };
+            }
+            // if backend says user belum ikut attempt
+            return { id: a.id, text: '-' };
+          } catch (err) {
+            // on error just put '-'
+            console.warn('Failed fetch ranking for attempt', a.attempt_number, err);
+            return { id: a.id, text: '-' };
+          }
+        });
+
+        const results = await Promise.all(promises);
+        if (!mounted) return;
+        setRankings((prev) => {
+          const next = { ...prev };
+          results.forEach(r => {
+            next[r.id] = r.text;
+          });
+          return next;
+        });
+      } catch (err) {
+        console.error('Error fetching rankings', err);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attempts, tryoutId]); // intentionally not depending on `rankings` to avoid infinite loops
+  // -------------------------------------------------
+
   if (loading) return <Typography>Loading...</Typography>;
   if (error) return <Typography color="error">{error}</Typography>;
   if (!tryoutData) return <Typography>Tidak ada data tryout</Typography>;
 
   return (
     <Stack spacing={4} sx={{ p: 2, bgcolor: palette.primaryContrastText }}>
-         <Box sx={{ mb: 2 }}>
+      <Box sx={{ mb: 2 }}>
         <Button
           onClick={handleBackClick}
           variant="contained"
@@ -411,7 +496,6 @@ export default function Tryout() {
         </Button>
       </Box>
       <Typography variant="h4" sx={{ fontWeight: 'bold', color: palette.btnSecondaryText }}>{tryoutData.name}</Typography>
-      {/* <Typography variant="body2" sx={{ color: palette.btnSecondaryText, fontWeight:600 }}>{tryoutData.description}</Typography> */}
 
       <Stack spacing={1}>
         <Typography sx={{ color: palette.btnSecondaryText }}><strong>Jumlah percobaan:</strong> {tryoutData.attemptsAllowed ?? 3}</Typography>
@@ -454,56 +538,59 @@ export default function Tryout() {
         <Stack spacing={2}>
           {[...attempts]
             .sort((a, b) => a.attempt_number - b.attempt_number)
-            .map((a, idx) => {
+            .map((a) => {
               const remainingSec = getRemainingSeconds(a);
               const isActive = a.status === 'ongoing' && remainingSec > 0;
               const isExpiredOngoing = a.status === 'ongoing' && remainingSec <= 0;
               const isFinished = ['finished', 'submitted', 'graded'].includes(a.status);
 
               return (
-                <Paper key={`${a.tryout_id}-${a.attempt_number}`} sx={{ p: 2, border: `1px solid ${palette.btnSecondaryText}`, borderRadius: 1, bgcolor: palette.primary }}>
+                <Paper key={`${a.tryout_id}-${a.attempt_number}`} sx={{ p: 2, border: `1px solid ${palette.btnSecondaryText}`, borderRadius: 1, bgcolor: palette.primaryContrastText }}>
                   <Stack spacing={1}>
-                    <Typography sx={{ color: palette.primaryContrastText }}><strong>Ujian #{idx + 1}</strong></Typography>
-                    <Typography sx={{ color: palette.primaryContrastText }}>
+                    <Typography sx={{ color: palette.btnSecondaryText }}><strong>Ujian #{a.attempt_number}</strong></Typography>
+                    
+                    <Stack flexDirection={'row'} justifyContent={'space-between'}>
+                    <Typography sx={{ color: palette.btnSecondaryText }}>Nilai: {a.grade ?? '-'}</Typography>
+                    <Typography sx={{ color: palette.btnSecondaryText }}>
+                      Peringkat: {a.grade && a.submitted_at ? (rankings[a.id] ?? '—') : '-'}
+                    </Typography>
+                    </Stack>
+                     <Stack flexDirection={'row'} justifyContent={'space-between'}>
+                    <Typography sx={{ color: palette.btnSecondaryText }}>
                       Status:{' '}
                       {isFinished ? 'Selesai' : isExpiredOngoing ? 'Waktu habis' : `Berlangsung — ${formatHMS(remainingSec)}`}
                     </Typography>
-                    <Typography sx={{ color: palette.primaryContrastText }}>Nilai: {a.grade ?? '-'}</Typography>
                     <Stack direction="row" spacing={1}>
                       {a.status === 'ongoing' ? (
                         isActive ? (
-                      <Button
-  size="small"
-  variant="contained"
-  onClick={() => handleContinueAttempt(a)}
-  sx={{
-    backgroundColor: palette.info,
-    color: palette.primaryContrastText,
-    fontFamily: 'Poppins',
-    '&:hover': {
-      backgroundColor: palette.primaryDark, // ganti warna saat hover
-    },
-  }}
->
-  Lanjutkan
-</Button>
-
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => handleContinueAttempt(a)}
+                            sx={{
+                              backgroundColor: palette.info,
+                              color: palette.primaryContrastText,
+                              fontFamily: 'Poppins',
+                              '&:hover': {
+                                backgroundColor: palette.primaryDark,
+                              },
+                            }}
+                          >
+                            Lanjutkan
+                          </Button>
                         ) : (
-                          <Button size="small" variant="contained" onClick={() => void handleGradeAttempt(a)} sx={{ backgroundColor: palette.warning, color: palette.primaryContrastText,   fontFamily: 'Poppins',
-    '&:hover': {
-      backgroundColor: palette.warning, // ganti warna saat hover
-    }, }}>
+                          <Button size="small" variant="contained" onClick={() => void handleGradeAttempt(a)} sx={{ backgroundColor: palette.warning, color: palette.primaryContrastText, fontFamily: 'Poppins',
+                            '&:hover': { backgroundColor: palette.warning }}}>
                             Nilai
                           </Button>
                         )
                       ) : (
-                        <Button size="small" variant="contained" onClick={() => handleReviewAttempt(a)} sx={{ color: palette.btnSecondaryText, borderColor: palette.btnSecondaryText,backgroundColor: palette.primaryContrastText,   fontFamily: 'Poppins',
-    '&:hover': {
-      backgroundColor: palette.primaryContrastText, // ganti warna saat hover
-    }, }}>
+                        <Button size="small" variant="contained" onClick={() => handleReviewAttempt(a)} sx={{ color: palette.primaryContrastText, borderColor: palette.primaryDark, backgroundColor: palette.primaryDark, fontFamily: 'Poppins',
+                          '&:hover': { backgroundColor: palette.primaryDark }}}>
                           Tinjau ulang
                         </Button>
                       )}
+                      </Stack>
                     </Stack>
                   </Stack>
                 </Paper>
@@ -518,13 +605,14 @@ export default function Tryout() {
                 <TableCell sx={{ color: palette.btnSecondaryText }}>No.</TableCell>
                 <TableCell sx={{ color: palette.btnSecondaryText }}>Status / Waktu tersisa</TableCell>
                 <TableCell sx={{ color: palette.btnSecondaryText }}>Nilai</TableCell>
+                <TableCell sx={{ color: palette.btnSecondaryText }}>Peringkat</TableCell>
                 <TableCell sx={{ color: palette.btnSecondaryText }}>Aksi</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {[...attempts]
                 .sort((a, b) => a.attempt_number - b.attempt_number)
-                .map((a, idx) => {
+                .map((a) => {
                   const remainingSec = getRemainingSeconds(a);
                   const isActive = a.status === 'ongoing' && remainingSec > 0;
                   const isExpiredOngoing = a.status === 'ongoing' && remainingSec <= 0;
@@ -532,7 +620,7 @@ export default function Tryout() {
 
                   return (
                     <TableRow key={`${a.tryout_id}-${a.attempt_number}`}>
-                      <TableCell sx={{ color: palette.btnSecondaryText }}>{idx + 1}</TableCell>
+                      <TableCell sx={{ color: palette.btnSecondaryText }}>{a.attempt_number}</TableCell>
                       <TableCell>
                         {isFinished ? (
                           <Typography sx={{ color: palette.btnSecondaryText }}>Selesai</Typography>
@@ -543,28 +631,28 @@ export default function Tryout() {
                         )}
                       </TableCell>
                       <TableCell sx={{ color: palette.btnSecondaryText }}>{a.grade ?? '-'}</TableCell>
+
+                      {/* Ranking column */}
+                      <TableCell sx={{ color: palette.btnSecondaryText }}>
+                        {a.grade && a.submitted_at ? (rankings[a.id] ?? '—') : '-'}
+                      </TableCell>
+
                       <TableCell>
                         {a.status === 'ongoing' ? (
                           isActive ? (
-                            <Button size="small" variant="contained" onClick={() => handleContinueAttempt(a)} sx={{ backgroundColor: palette.info, color: palette.primaryContrastText,  fontFamily: 'Poppins',
-    '&:hover': {
-      backgroundColor: palette.primaryDark, // ganti warna saat hover
-    },}}>
+                            <Button size="small" variant="contained" onClick={() => handleContinueAttempt(a)} sx={{ backgroundColor: palette.info, color: palette.primaryContrastText, fontFamily: 'Poppins',
+                              '&:hover': { backgroundColor: palette.primaryDark }}}>
                               Lanjutkan
                             </Button>
                           ) : (
-                            <Button size="small" variant="contained" onClick={() => void handleGradeAttempt(a)} sx={{ backgroundColor: palette.warning, color: palette.primaryContrastText,  fontFamily: 'Poppins',
-    '&:hover': {
-      backgroundColor: palette.warning, // ganti warna saat hover
-    },}}>
+                            <Button size="small" variant="contained" onClick={() => void handleGradeAttempt(a)} sx={{ backgroundColor: palette.warning, color: palette.primaryContrastText, fontFamily: 'Poppins',
+                              '&:hover': { backgroundColor: palette.warning }}}>
                               Nilai
                             </Button>
                           )
                         ) : (
-                          <Button size="small" variant="outlined" onClick={() => handleReviewAttempt(a)} sx={{ color: palette.btnSecondaryText, borderColor: palette.btnSecondaryText,  fontFamily: 'Poppins',
-    '&:hover': {
-      backgroundColor: palette.primaryContrastText, // ganti warna saat hover
-    }, }}>
+                          <Button size="small" variant="outlined" onClick={() => handleReviewAttempt(a)} sx={{ color: palette.btnSecondaryText, borderColor: palette.btnSecondaryText, fontFamily: 'Poppins',
+                            '&:hover': { backgroundColor: palette.primaryContrastText }}}>
                             Tinjau ulang
                           </Button>
                         )}
@@ -590,7 +678,7 @@ export default function Tryout() {
         sx={{
           backgroundColor: startDisabled ? '#bdbdbd' : palette.primary,
           color: startDisabled ? '#fff' : palette.primaryContrastText,
-          '&:hover': { backgroundColor: startDisabled ? '#bdbdbd' : palette.primaryDark, fontFamily:'Poppins' },
+          '&:hover': { backgroundColor: startDisabled ? '#bdbdbd' : palette.primaryDark, fontFamily: 'Poppins' },
         }}
       >
         Mulai Ujian

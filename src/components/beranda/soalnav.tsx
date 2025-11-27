@@ -308,11 +308,13 @@ export default function QuizNavigation({
                     minWidth: 36,
                     height: 36,
                     borderRadius: 1,
-                    backgroundColor: isSelected
-                      ? themePalette.primaryDark
-                      : isAnswered
-                      ? themePalette.primaryDark
-                      : themePalette.primary,
+                    backgroundColor: flagged
+  ? themePalette.error               // merah kalau flagged
+  : isSelected
+  ? themePalette.primaryLight
+  : isAnswered
+  ? themePalette.primary
+  : themePalette.surface,
                     color: isSelected || isAnswered ? themePalette.primaryContrastText : themePalette.textPrimary,
                     fontSize: 13,
                     fontWeight: 500,
@@ -324,19 +326,7 @@ export default function QuizNavigation({
                         ? themePalette.primaryLight
                         : themePalette.primaryDark,
                     },
-                    ...(flagged && {
-                      '&::after': {
-                        content: '""',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '20%',
-                        backgroundColor: themePalette.error,
-                        borderTopLeftRadius: '4px',
-                        borderTopRightRadius: '4px',
-                      },
-                    }),
+                   
                   }}
                 >
                   {numOrder}

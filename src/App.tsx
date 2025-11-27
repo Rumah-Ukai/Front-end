@@ -25,8 +25,10 @@ import { AddWisata } from './pages/Admin/Wisata/add';
 import { AdminOleh } from './pages/Admin/Oleh';
 import { InputOleh } from './pages/Admin/Oleh/input';
 import { AddOleh } from './pages/Admin/Oleh/add';
-// import Footer from './components/ui/footer';
+import Footer from './components/ui/footer';
+import { Rumah } from './pages/Rumahukai';
 import { Beranda } from './pages/Beranda';
+import { Landasan } from './pages/Landing';
 import { Login } from './pages/Login';
 import { LoginAdmin } from './pages/Admin/Login';
 // import { AdminLogin } from './pages/Admin/Login';
@@ -47,7 +49,7 @@ import {Paket} from './pages/Paket';
 
 import {Quizattempt} from './pages/Restoran';
 import {Pdf} from './pages/Restoran/list';
-
+import './index.css'
 import '@fontsource/poppins/300.css';
 import '@fontsource/poppins/400.css';
 import '@fontsource/poppins/500.css';
@@ -78,13 +80,37 @@ const router = createBrowserRouter([
   {
     path: '/',
     element: (
-      <ProtectedRoute>
+      // <ProtectedRoute>
+        <>
+          <Navbar />
+          <Landasan />
+          <Footer />
+        </>
+      // </ProtectedRoute>
+    )
+  },
+    {
+    path: '/produk',
+    element: (
+      // <ProtectedRoute>
         <>
           <Navbar />
           <Beranda />
-          {/* <Footer /> */}
+          <Footer />
         </>
-      </ProtectedRoute>
+      // </ProtectedRoute>
+    )
+  },
+    {
+    path: '/tentang-kami',
+    element: (
+      // <ProtectedRoute>
+        <>
+          <Navbar />
+          <Rumah />
+          <Footer />
+        </>
+      // </ProtectedRoute>
     )
   },
   {
@@ -118,7 +144,7 @@ const router = createBrowserRouter([
       <>
         <Navbar />
         <Paketku />
-        {/* <Footer/> */}
+        <Footer/>
       </>
       </ProtectedRoute>
     )
@@ -193,7 +219,7 @@ const router = createBrowserRouter([
     <>
     <Navbar />
     <Paket/>
-    {/* <Footer/> */}
+    <Footer/>
     </>
    </ProtectedRoute>
     )
@@ -206,7 +232,7 @@ const router = createBrowserRouter([
         <>
           <Navbar/>
           <Quizattempt/>
-          {/* <Footer/> */}
+          <Footer/>
         </>
         </ProtectedRoute>
       )
@@ -219,6 +245,7 @@ const router = createBrowserRouter([
         <>
           <Navbar/>
           <Profile />
+                <Footer/>
         </>
         </ProtectedRoute>
       )
@@ -356,9 +383,13 @@ const router = createBrowserRouter([
 function App() {
   return (
     // Provide the custom theme to the entire app
+   
     <ThemeProvider theme={theme}>
+        {/* <div className="app-wrapper"> */}
       <RouterProvider router={router} />
+      {/* </div> */}
     </ThemeProvider>
+      
   );
 }
 

@@ -83,7 +83,7 @@ export default function QuizReview({
     if (incorrectQuestions.includes(numOrder)) {
       return { bg: themePalette.error, hover: themePalette.primaryDark, text: themePalette.primaryContrastText };
     }
-    return { bg: themePalette.primary, hover: themePalette.primaryDark, text: themePalette.primaryContrastText };
+    return { bg: themePalette.surface, hover: themePalette.primary, text: themePalette.primaryContrastText };
   };
 
   const handleFontSize = (size: 'small' | 'normal' | 'large') => {

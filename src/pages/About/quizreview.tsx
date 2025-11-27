@@ -179,7 +179,8 @@ export default function QuizReview(): JSX.Element {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [themePalette.surface]);
-
+document.body.style.backgroundColor = 'white';
+document.documentElement.style.backgroundColor ='white';
   useEffect(() => {
     let mounted = true;
     const load = async (): Promise<void> => {
@@ -386,9 +387,9 @@ export default function QuizReview(): JSX.Element {
   };
 
   const StatsBox = () => (
-    <Card sx={{ mb: 2, borderRadius: 2, boxShadow: 2, backgroundColor: themePalette.surface }}>
+    <Card sx={{ mb: 2, borderRadius: 2, boxShadow: 2, backgroundColor: 'white'}}>
       <CardContent>
-        <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2, color: themePalette.textPrimary }}>
+        <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2, color: themePalette.btnSecondaryText }}>
           Statistik Penyelesaian
         </Typography>
 
@@ -403,12 +404,12 @@ export default function QuizReview(): JSX.Element {
         >
           <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
             <Typography variant="caption" sx={{ color: themePalette.textSecondary }}>Total Soal</Typography>
-            <Typography variant="h6" sx={{ color: themePalette.textPrimary }}>{stats.total}</Typography>
+            <Typography variant="h6" sx={{ color: themePalette.btnSecondaryText }}>{stats.total}</Typography>
           </Box>
 
           <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
             <Typography variant="caption" sx={{ color: themePalette.textSecondary }}>Terjawab</Typography>
-            <Typography variant="h6" sx={{ color: themePalette.textPrimary }}>{stats.answeredCount}</Typography>
+            <Typography variant="h6" sx={{ color: themePalette.btnSecondaryText }}>{stats.answeredCount}</Typography>
           </Box>
 
           <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
@@ -423,7 +424,7 @@ export default function QuizReview(): JSX.Element {
 
           <Box textAlign="center" flex={1} minWidth={{ xs: '45%', sm: '120px' }}>
             <Typography variant="caption" sx={{ color: themePalette.textSecondary }}>Belum Terjawab</Typography>
-            <Typography variant="h6" sx={{ color: themePalette.textPrimary }}>{stats.unansweredCount}</Typography>
+            <Typography variant="h6" sx={{ color: themePalette.btnSecondaryText }}>{stats.unansweredCount}</Typography>
           </Box>
         </Stack>
 
@@ -440,17 +441,17 @@ export default function QuizReview(): JSX.Element {
         >
           <Box textAlign="center" flex={1} minWidth={{ xs: '90%', sm: '160px' }}>
             <Typography variant="caption" sx={{ color: themePalette.textSecondary }}>Total Waktu</Typography>
-            <Typography variant="body1" sx={{ color: themePalette.textPrimary }}>{formatSec(stats.totalSeconds)}</Typography>
+            <Typography variant="body1" sx={{ color: themePalette.btnSecondaryText }}>{formatSec(stats.totalSeconds)}</Typography>
           </Box>
 
           <Box textAlign="center" flex={1} minWidth={{ xs: '90%', sm: '160px' }}>
             <Typography variant="caption" sx={{ color: themePalette.textSecondary }}>Rata-rata / soal (semua)</Typography>
-            <Typography variant="body1" sx={{ color: themePalette.textPrimary }}>{formatSec(stats.avgSecPerQuestionAll)}</Typography>
+            <Typography variant="body1" sx={{ color: themePalette.btnSecondaryText }}>{formatSec(stats.avgSecPerQuestionAll)}</Typography>
           </Box>
 
           <Box textAlign="center" flex={1} minWidth={{ xs: '90%', sm: '160px' }}>
             <Typography variant="caption" sx={{ color: themePalette.textSecondary }}>Rata-rata / soal (yang dijawab)</Typography>
-            <Typography variant="body1" sx={{ color: themePalette.textPrimary }}>{formatSec(stats.avgSecPerAnswered)}</Typography>
+            <Typography variant="body1" sx={{ color: themePalette.btnSecondaryText }}>{formatSec(stats.avgSecPerAnswered)}</Typography>
           </Box>
         </Stack>
       </CardContent>
@@ -478,7 +479,7 @@ export default function QuizReview(): JSX.Element {
         mx: 'auto',
         mt: 4,
         pr: { xs: '20px', sm: '360px', md: '440px', lg: '520px', xl: '540px' },
-        bgcolor: themePalette.primary,
+        bgcolor: 'white',
       }}
       alignItems="stretch"
     >
@@ -552,8 +553,8 @@ export default function QuizReview(): JSX.Element {
                 variant="outlined"
                 onClick={goToPreviousQuestion}
                 disabled={questions.findIndex(q => q.id === selectedQuestionId) <= 0}
-                sx={{fontSize:'10px', borderColor: themePalette.primary, color: themePalette.primaryContrastText, bgcolor:themePalette.primaryLight,
-                       '&:hover': { backgroundColor: themePalette.primaryDark },
+                sx={{fontSize:'10px', borderColor: themePalette.primaryDark, color: themePalette.primaryContrastText, bgcolor:themePalette.primaryLight,
+                       '&:hover': { backgroundColor: themePalette.primaryDark, borderColor: themePalette.primaryDark },
                     }}>
                 Sebelumnya
               </Button>
@@ -562,8 +563,8 @@ export default function QuizReview(): JSX.Element {
                 variant="contained"
                 size="large"
                 onClick={handleExit}
-                sx={{fontSize:'10px', borderColor: themePalette.primary, color: themePalette.primaryContrastText, bgcolor:themePalette.primaryLight,
-                       '&:hover': { backgroundColor: themePalette.primaryDark },
+                sx={{fontSize:'10px', borderColor: themePalette.primaryDark, color: themePalette.primaryContrastText, bgcolor:themePalette.primaryLight,
+                       '&:hover': { backgroundColor: themePalette.primaryDark, borderColor: themePalette.primaryDark },
                     }}>
                 Keluar
               </Button>

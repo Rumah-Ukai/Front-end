@@ -2,13 +2,13 @@
 
 // Palet 1
 const palette1 = {
-  primary: '#64483D',
-  primaryDark: '#462011',
+  primary: '#C65E2B',
+  primaryDark: '#853f1dff',
   primaryLight: '#5B3425',
   primaryContrastText: '#FFFFFF',
 
 //   pageBackground: '#997262',
-   pageBackground: '#64483D',
+   pageBackground: '#C65E2B',
   surface: '#C19C8D',
   paper: '#C19C8D',
 
@@ -108,10 +108,36 @@ const palette4 = {
 
   borderRadius: 12,
 };
+const palette5 = {
+  primary: '#64483D',
+  primaryDark: '#462011',
+  primaryLight: '#5B3425',
+  primaryContrastText: '#FFFFFF',
 
+//   pageBackground: '#997262',
+   pageBackground: '#64483D',
+  surface: '#C19C8D',
+  paper: '#C19C8D',
+
+  textPrimary: '#ffffffff',
+  textSecondary: '#6f6563',
+
+  success: '#8ce02b',
+  error: '#d32f2f',
+  warning: '#f59e0b',
+  info: '#1b2f70ff',
+
+  btnPrimaryBg: '#64483D',
+  btnPrimaryText: '#FFFFFF',
+  btnSecondaryBg: '#6b6b6b',
+  btnSecondaryText: '#2b2726',
+
+  borderRadius: 12,
+};
 export const tokensSet = {
   palette1,
   palette2,
   palette3,
   palette4,
+  palette5,
 };

@@ -26,12 +26,10 @@ import logoTripsel from '../../../assets/icononly.png';
 import { useTheme } from '@mui/material/styles';
 import { Menu as MenuIcon } from '@mui/icons-material';
 
-// ✅ Mapping foto dari DB ke asset di web
 import foto1 from '../../../assets/fotouser/foto1.png';
 import foto2 from '../../../assets/fotouser/foto2.png';
 import foto3 from '../../../assets/fotouser/foto3.png';
 
-// ✅ Import palet
 import { tokensSet } from '../../../theme/tokens';
 
 const fotoMap: Record<string, string> = {
@@ -40,10 +38,8 @@ const fotoMap: Record<string, string> = {
   foto3,
 };
 
-// ✅ Ambil base URL dari .env (Vite)
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
-// ✅ Definisikan type key palette
 type PaletteKey = keyof typeof tokensSet;
 
 export default function Navbar() {
@@ -53,7 +49,9 @@ export default function Navbar() {
   const [menuActive, setMenuActive] = useState(false);
   const [userFoto, setUserFoto] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [palette, setPalette] = useState(tokensSet.palette1); // default palette1
+  const [palette, setPalette] = useState(tokensSet.palette1);
+
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -64,31 +62,34 @@ export default function Navbar() {
   useEffect(() => {
     const fetchUserData = async () => {
       const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const response = await fetch(`${API_BASE}/user`, {
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-          const data = await response.json();
 
-          if (data) {
-            if (data.foto) {
-              setUserFoto(data.foto);
-            }
+      if (!token) {
+        setIsLoggedIn(false);
+        return;
+      }
 
-            // ✅ Periksa tipe dan pastikan index valid
-            if (data.tema && typeof data.tema === 'string' && data.tema in tokensSet) {
-              setPalette(tokensSet[data.tema as PaletteKey]);
-            }
+      setIsLoggedIn(true);
+
+      try {
+        const response = await fetch(`${API_BASE}/user`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = await response.json();
+
+        if (data) {
+          if (data.foto) setUserFoto(data.foto);
+
+          if (data.tema && typeof data.tema === 'string' && data.tema in tokensSet) {
+            setPalette(tokensSet[data.tema as PaletteKey]);
           }
-        } catch (error) {
-          console.error('Error fetching user data:', error);
         }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
       }
     };
+
     fetchUserData();
   }, []);
 
@@ -97,26 +98,21 @@ export default function Navbar() {
     handleMenuOpen();
   };
 
-  const handleMenuOpen = () => {
-    setMenuActive(true);
-  };
-
+  const handleMenuOpen = () => setMenuActive(true);
   const handleMenuClose = () => {
     setProfileAnchorEl(null);
     setMenuActive(false);
   };
 
-  const handleBerandamenu = () => {
-    navigate(`/`);
-  };
-  const handlePaketku = () => {
-    navigate(`/daftar-paketku`);
-  };
-  const handleProfilemenu = () => {
-    navigate(`/profile`);
-  };
+  const handleBeranda = () => navigate(`/`);
+  const handleProduk = () => navigate(`/produk`);
+  const handlePaketku = () => navigate(`/daftar-paketku`);
+  const handleProfile = () => navigate(`/profile`);
+  const handleLogin = () => navigate(`/login`);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
+    setIsLoggedIn(false);
     navigate(`/login`);
   };
 
@@ -129,7 +125,6 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [menuActive]);
 
-  // ✅ Tentukan gambar avatar (default pakai logoTripsel)
   const avatarSrc = userFoto && fotoMap[userFoto] ? fotoMap[userFoto] : logoTripsel;
 
   return (
@@ -147,18 +142,22 @@ export default function Navbar() {
         flexDirection: 'row'
       }}
     >
-      {/* Logo */}
+      {/* LOGO */}
       <Stack sx={{ width: { xs: '70px', sm: '80px', md: '100px' } }}>
         <img style={{ width: '100%', height: 'auto' }} src={logoTripsel} alt="logo" />
       </Stack>
 
-      {/* Desktop Menu */}
+      {/* DESKTOP MENU */}
       {!isMobile && (
         <Stack direction="row" spacing={{ xs: 1, sm: 2, md: 3 }} alignItems="center">
+          
+         
+
+          {/* === BERANDA === */}
           <Button
             disableElevation
             disableRipple
-            onClick={handleBerandamenu}
+            onClick={handleBeranda}
             sx={{
               color: palette.textPrimary,
               '&:hover': { color: palette.primaryDark, fontWeight: 700 },
@@ -168,7 +167,21 @@ export default function Navbar() {
           >
             <Typography sx={{ fontSize: { sm: 20, md: 24 } }}>Beranda</Typography>
           </Button>
-
+ {/* === PRODUK === */}
+          <Button
+            disableElevation
+            disableRipple
+            onClick={handleProduk}
+            sx={{
+              color: palette.textPrimary,
+              '&:hover': { color: palette.primaryDark, fontWeight: 700 },
+              minWidth: 'auto',
+              padding: '0px',
+            }}
+          >
+            <Typography sx={{ fontSize: { sm: 20, md: 24 } }}>Produk</Typography>
+          </Button>
+          {/* === PAKETKU === */}
           <Button
             disableElevation
             disableRipple
@@ -183,22 +196,40 @@ export default function Navbar() {
             <Typography sx={{ fontSize: { sm: 20, md: 24 } }}>Paketku</Typography>
           </Button>
 
-          <Button
-            disableElevation
-            disableRipple
-            onClick={handleProfileMenuOpen}
-            sx={{
-              color: palette.textPrimary,
-              '&:hover': { color: palette.primary, fontWeight: 700 },
-              minWidth: 'auto',
-              padding: '0px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Avatar src={avatarSrc} alt="User" sx={{ width: 80, height: 80, mr: 1 }} />
-          </Button>
+          {/* LOGIN / AVATAR */}
+          {!isLoggedIn ? (
+            <Button
+              disableElevation
+              disableRipple
+              onClick={handleLogin}
+              sx={{
+                color: palette.textPrimary,
+                '&:hover': { color: palette.primaryDark, fontWeight: 700 },
+                minWidth: 'auto',
+                padding: '0px',
+              }}
+            >
+              <Typography sx={{ fontSize: { sm: 20, md: 24 } }}>Masuk</Typography>
+            </Button>
+          ) : (
+            <Button
+              disableElevation
+              disableRipple
+              onClick={handleProfileMenuOpen}
+              sx={{
+                color: palette.textPrimary,
+                '&:hover': { color: palette.primary, fontWeight: 700 },
+                minWidth: 'auto',
+                padding: '0px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Avatar src={avatarSrc} alt="User" sx={{ width: 80, height: 80, mr: 1 }} />
+            </Button>
+          )}
 
+          {/* DROPDOWN PROFILE */}
           <Menu
             anchorEl={profileAnchorEl}
             open={Boolean(profileAnchorEl)}
@@ -213,14 +244,14 @@ export default function Navbar() {
               },
             }}
           >
-            <MenuItem onClick={handleProfilemenu} sx={{ color: palette.textPrimary }}>Profile</MenuItem>
+            <MenuItem onClick={handleProfile} sx={{ color: palette.textPrimary }}>Profile</MenuItem>
             <Divider />
             <MenuItem onClick={handleLogout} sx={{ color: palette.textPrimary }}>Sign out</MenuItem>
           </Menu>
         </Stack>
       )}
 
-      {/* Mobile Menu */}
+      {/* MOBILE MENU */}
       {isMobile && (
         <>
           <IconButton
@@ -230,6 +261,7 @@ export default function Navbar() {
           >
             <MenuIcon fontSize={isSmallMobile ? 'medium' : 'large'} />
           </IconButton>
+
           <Drawer
             anchor="right"
             open={drawerOpen}
@@ -244,27 +276,83 @@ export default function Navbar() {
             }}
           >
             <Stack alignItems="center" spacing={1} sx={{ padding: '0px 0' }}>
-              <Avatar src={avatarSrc} alt="User" sx={{ width: 70, height: 70}} />
+              {!isLoggedIn ? (
+                <Typography sx={{ fontSize: 20, fontWeight: 600 }}>Masuk</Typography>
+              ) : (
+                <Avatar src={avatarSrc} alt="User" sx={{ width: 70, height: 70 }} />
+              )}
             </Stack>
+
             <Divider />
 
             <List sx={{ padding: '0' }}>
-              {[
-                { label: 'Beranda', action: handleBerandamenu },
-                { label: 'Paketku', action: handlePaketku },
-                { label: 'Profile', action: handleProfilemenu },
-                { label: 'Sign out', action: handleLogout },
-              ].map((item, idx) => (
-                <div key={idx}>
+
+              
+
+              {/* MOBILE: BERANDA */}
+              <ListItem
+                onClick={() => {
+                  handleBeranda();
+                  handleDrawerToggle();
+                }}
+                sx={{ padding: '12px 24px' }}
+              >
+                <ListItemText
+                  primary="Beranda"
+                  primaryTypographyProps={{
+                    fontSize: isSmallMobile ? '16px' : '18px',
+                    color: palette.textPrimary,
+                  }}
+                />
+              </ListItem>
+              <Divider />
+{/* MOBILE: PRODUK */}
+              <ListItem
+                onClick={() => {
+                  handleProduk();
+                  handleDrawerToggle();
+                }}
+                sx={{ padding: '12px 24px' }}
+              >
+                <ListItemText
+                  primary="Produk"
+                  primaryTypographyProps={{
+                    fontSize: isSmallMobile ? '16px' : '18px',
+                    color: palette.textPrimary,
+                  }}
+                />
+              </ListItem>
+              <Divider />
+              {/* MOBILE: PAKETKU */}
+              <ListItem
+                onClick={() => {
+                  handlePaketku();
+                  handleDrawerToggle();
+                }}
+                sx={{ padding: '12px 24px' }}
+              >
+                <ListItemText
+                  primary="Paketku"
+                  primaryTypographyProps={{
+                    fontSize: isSmallMobile ? '16px' : '18px',
+                    color: palette.textPrimary,
+                  }}
+                />
+              </ListItem>
+              <Divider />
+
+              {/* MOBILE: LOGIN / PROFILE */}
+              {!isLoggedIn ? (
+                <>
                   <ListItem
                     onClick={() => {
-                      item.action();
+                      handleLogin();
                       handleDrawerToggle();
                     }}
                     sx={{ padding: '12px 24px' }}
                   >
                     <ListItemText
-                      primary={item.label}
+                      primary="Masuk"
                       primaryTypographyProps={{
                         fontSize: isSmallMobile ? '16px' : '18px',
                         color: palette.textPrimary,
@@ -272,8 +360,44 @@ export default function Navbar() {
                     />
                   </ListItem>
                   <Divider />
-                </div>
-              ))}
+                </>
+              ) : (
+                <>
+                  <ListItem
+                    onClick={() => {
+                      handleProfile();
+                      handleDrawerToggle();
+                    }}
+                    sx={{ padding: '12px 24px' }}
+                  >
+                    <ListItemText
+                      primary="Profile"
+                      primaryTypographyProps={{
+                        fontSize: isSmallMobile ? '16px' : '18px',
+                        color: palette.textPrimary,
+                      }}
+                    />
+                  </ListItem>
+                  <Divider />
+
+                  <ListItem
+                    onClick={() => {
+                      handleLogout();
+                      handleDrawerToggle();
+                    }}
+                    sx={{ padding: '12px 24px' }}
+                  >
+                    <ListItemText
+                      primary="Sign out"
+                      primaryTypographyProps={{
+                        fontSize: isSmallMobile ? '16px' : '18px',
+                        color: palette.textPrimary,
+                      }}
+                    />
+                  </ListItem>
+                  <Divider />
+                </>
+              )}
             </List>
           </Drawer>
         </>
