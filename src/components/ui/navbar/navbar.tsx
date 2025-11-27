@@ -22,7 +22,7 @@ import '@fontsource/poppins/500.css';
 import '@fontsource/poppins/700.css';
 import '@fontsource/poppins/800.css';
 import logoTripsel from '../../../assets/icononly.png';
-
+import placeholder from '../../../assets/user.png';
 import { useTheme } from '@mui/material/styles';
 import { Menu as MenuIcon } from '@mui/icons-material';
 
@@ -125,7 +125,7 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [menuActive]);
 
-  const avatarSrc = userFoto && fotoMap[userFoto] ? fotoMap[userFoto] : logoTripsel;
+  const avatarSrc = userFoto && fotoMap[userFoto] ? fotoMap[userFoto] : placeholder;
 
   return (
     <AppBar
@@ -275,7 +275,7 @@ export default function Navbar() {
               }
             }}
           >
-            <Stack alignItems="center" spacing={1} sx={{ padding: '0px 0' }}>
+            <Stack alignItems="center" spacing={1} sx={{ padding: '10px 0' }}>
               {!isLoggedIn ? (
                 <Typography sx={{ fontSize: 20, fontWeight: 600 }}>Masuk</Typography>
               ) : (
